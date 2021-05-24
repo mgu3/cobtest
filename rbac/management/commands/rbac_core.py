@@ -115,8 +115,6 @@ def create_RBAC_admin_group(self, qualifier, item, description):
                 "Added %s.%s %s to RBACAdminGroup" % (qualifier, item, description)
             )
         )
-        return r
-
     else:
         r = RBACAdminGroup.objects.filter(
             name_qualifier=qualifier, name_item=item
@@ -126,4 +124,5 @@ def create_RBAC_admin_group(self, qualifier, item, description):
                 "%s.%s already in RBACAdminGroup. Ok." % (qualifier, item)
             )
         )
-        return r
+
+    return r

@@ -71,13 +71,13 @@ def home(request):
         .filter(status="Published")
     )
 
+    draft_congress_flag = False
     if request.user.is_authenticated:
 
         template = "events/home.html"
 
         # get draft congresses
         draft_congresses = Congress.objects.filter(status="Draft")
-        draft_congress_flag = False
         for draft_congress in draft_congresses:
             role = "events.org.%s.edit" % draft_congress.congress_master.org.id
             if rbac_user_has_role(request.user, role):
@@ -86,8 +86,6 @@ def home(request):
     else:
 
         template = "events/home_logged_out.html"
-
-        draft_congress_flag = False
 
     grouped_by_month = {}
     for congress in congresses:
@@ -250,20 +248,15 @@ def view_congress(request, congress_id, fullscreen=False):
                     program[
                         "links"
                     ] = f"<td rowspan='{rows}'><a href='/events/congress/event/change-entry/{congress.id}/{event.id}'>View Your Entry</a><br><a href='/events/congress/event/view-event-entries/{congress.id}/{event.id}'>View Entries</a>"
-                    if congress.allow_partnership_desk:
-                        program[
-                            "links"
-                        ] += f"<br><a href='/events/congress/event/view-event-partnership-desk/{congress.id}/{event.id}'>Partnership Desk</a>"
-                    program["links"] += "</td>"
                 else:
                     program[
                         "links"
                     ] = f"<td rowspan='{rows}'><a href='/events/congress/event/enter/{congress.id}/{event.id}'>Enter</a><br><a href='/events/congress/event/view-event-entries/{congress.id}/{event.id}'>View Entries</a>"
-                    if congress.allow_partnership_desk:
-                        program[
-                            "links"
-                        ] += f"<br><a href='/events/congress/event/view-event-partnership-desk/{congress.id}/{event.id}'>Partnership Desk</a>"
-                    program["links"] += "</td>"
+                if congress.allow_partnership_desk:
+                    program[
+                        "links"
+                    ] += f"<br><a href='/events/congress/event/view-event-partnership-desk/{congress.id}/{event.id}'>Partnership Desk</a>"
+                program["links"] += "</td>"
                 first_row_for_event = False
             program["day"] = "<td>%s</td>" % day.session_date.strftime("%A")
 
@@ -428,10 +421,17 @@ def checkout(request):
 
         congress = event_entry_player.event_entry.event.congress
 
-        if congress not in congress_total.keys():
+        if congress in congress_total:
+            congress_total[congress]["entry_fee"] += event_entry_player.entry_fee
+            if event_entry_player.payment_type == "my-system-dollars":
+                congress_total[congress]["today"] += event_entry_player.entry_fee
+                total_today += event_entry_player.entry_fee
+            else:
+                congress_total[congress]["later"] += event_entry_player.entry_fee
 
-            congress_total[congress] = {}
-            congress_total[congress]["entry_fee"] = event_entry_player.entry_fee
+        else:
+
+            congress_total[congress] = {"entry_fee": event_entry_player.entry_fee}
             if event_entry_player.payment_type == "my-system-dollars":
                 congress_total[congress]["today"] = event_entry_player.entry_fee
                 total_today += event_entry_player.entry_fee
@@ -439,14 +439,6 @@ def checkout(request):
             else:
                 congress_total[congress]["later"] = event_entry_player.entry_fee
                 congress_total[congress]["today"] = Decimal(0.0)
-
-        else:
-            congress_total[congress]["entry_fee"] += event_entry_player.entry_fee
-            if event_entry_player.payment_type == "my-system-dollars":
-                congress_total[congress]["today"] += event_entry_player.entry_fee
-                total_today += event_entry_player.entry_fee
-            else:
-                congress_total[congress]["later"] += event_entry_player.entry_fee
 
     grouped_by_congress = {}
     for event_entry_player in event_entry_players:
@@ -692,13 +684,10 @@ def edit_event_entry(request, congress_id, event_id, edit_flag=None, pay_status=
         event_entry=event_entry
     ).order_by("first_created_date")
 
-    count = 1
     pay_count = 0
-    for event_entry_player in event_entry_players:
+    for count, event_entry_player in enumerate(event_entry_players, start=1):
         if count > 4:
             event_entry_player.extra_player = True
-        count += 1
-
         # check payment outstanding so we can show a Pay All button if mmore than 1
         if event_entry_player.entry_fee - event_entry_player.payment_received > 0:
             pay_count += 1
@@ -835,8 +824,8 @@ def delete_event_entry(request, event_entry_id):
 
         # Notify conveners
         player_string = f"<table><tr><td><b>Name</b><td><b>{GLOBAL_ORG} No.</b><td><b>Payment Method</b><td><b>Status</b></tr>"
+        PAYMENT_TYPES_DICT = dict(PAYMENT_TYPES)
         for event_entry_player in event_entry_players:
-            PAYMENT_TYPES_DICT = dict(PAYMENT_TYPES)
             payment_type_str = PAYMENT_TYPES_DICT[event_entry_player.payment_type]
             player_string += f"<tr><td>{event_entry_player.player.full_name}<td>{event_entry_player.player.system_number}<td>{payment_type_str}<td>{event_entry_player.payment_status}</tr>"
         player_string += "</table>"
@@ -911,7 +900,7 @@ def delete_event_entry(request, event_entry_id):
                 )
 
                 # record refund amount
-                if event_entry_player.paid_by in refunds.keys():
+                if event_entry_player.paid_by in refunds:
                     refunds[event_entry_player.paid_by] += amount
                 else:
                     refunds[event_entry_player.paid_by] = amount
@@ -921,7 +910,7 @@ def delete_event_entry(request, event_entry_id):
                 cancelled.append(event_entry_player.player)
 
         # new loop, refunds have been made so notify people
-        for member in refunds.keys():
+        for member in refunds:
 
             # Notify users
 
@@ -1171,13 +1160,12 @@ def global_admin_edit_congress_master(request, id):
     )
     rbac_group_id = rbac_group_id_from_name(qualifier, "congresses")
 
-    if request.method == "POST":
-        if form.is_valid:
-            form.save()
-            messages.success(
-                request, "Congress Master added", extra_tags="cobalt-message-success"
-            )
-            return redirect("events:global_admin_congress_masters")
+    if request.method == "POST" and form.is_valid:
+        form.save()
+        messages.success(
+            request, "Congress Master added", extra_tags="cobalt-message-success"
+        )
+        return redirect("events:global_admin_congress_masters")
 
     return render(
         request,
@@ -1200,13 +1188,12 @@ def global_admin_create_congress_master(request):
         return rbac_forbidden(request, role)
 
     form = CongressMasterForm(request.POST or None)
-    if request.method == "POST":
-        if form.is_valid:
-            form.save()
-            messages.success(
-                request, "Congress Master added", extra_tags="cobalt-message-success"
-            )
-            return redirect("events:global_admin_congress_masters")
+    if request.method == "POST" and form.is_valid:
+        form.save()
+        messages.success(
+            request, "Congress Master added", extra_tags="cobalt-message-success"
+        )
+        return redirect("events:global_admin_congress_masters")
 
     return render(
         request, "events/global_admin_congress_master_create.html", {"form": form}
@@ -1275,10 +1262,10 @@ def enter_event_form(event, congress, request):
     min_entries = team_size
     if team_size == 6:
         min_entries = 4
+    name_selected = None
     for ref in range(1, team_size):
 
         payment_selected = pay_methods[0]
-        name_selected = None
         entry_fee = None
 
         # only ABF dollars go in the you column
@@ -1519,11 +1506,7 @@ def view_event_partnership_desk(request, congress_id, event_id):
     role = "events.org.%s.edit" % event.congress.congress_master.org.id
     admin = rbac_user_has_role(request.user, role)
 
-    if partnerships.filter(player=request.user):
-        already = True
-    else:
-        already = False
-
+    already = bool(partnerships.filter(player=request.user))
     return render(
         request,
         "events/view_event_partnership_desk.html",

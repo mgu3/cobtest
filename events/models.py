@@ -252,16 +252,14 @@ class Event(models.Model):
         open_date = self.entry_open_date
         if not open_date:
             open_date = self.congress.entry_open_date
-            if open_date:
-                if today < open_date:
-                    return False
+            if open_date and today < open_date:
+                return False
 
         close_date = self.entry_close_date
         if not close_date:
             close_date = self.congress.entry_close_date
-        if close_date:
-            if today > close_date:
-                return False
+        if close_date and today > close_date:
+            return False
 
         # check start date of event
         start_date = self.start_date()
@@ -303,40 +301,41 @@ class Event(models.Model):
         entry_fee = cobalt_round(self.entry_fee / players_per_entry)
 
         # date
-        if self.congress.allow_early_payment_discount:
-            if self.congress.early_payment_discount_date >= check_date:
-                entry_fee = (
-                    self.entry_fee - self.entry_early_payment_discount
-                ) / players_per_entry
-                entry_fee = cobalt_round(entry_fee)
-                reason = "Early discount"
-                discount = float(self.entry_fee) / players_per_entry - float(entry_fee)
-                description = "Early discount " + cobalt_credits(discount)
+        if (
+            self.congress.allow_early_payment_discount
+            and self.congress.early_payment_discount_date >= check_date
+        ):
+            entry_fee = (
+                self.entry_fee - self.entry_early_payment_discount
+            ) / players_per_entry
+            entry_fee = cobalt_round(entry_fee)
+            reason = "Early discount"
+            discount = float(self.entry_fee) / players_per_entry - float(entry_fee)
+            description = "Early discount " + cobalt_credits(discount)
 
         # youth discounts apply after early entry discounts
-        if self.congress.allow_youth_payment_discount:
-            if user.dob:  # skip if no date of birth set
-                dob = datetime.datetime.combine(user.dob, datetime.time(0, 0))
-                dob = timezone.make_aware(dob, pytz.timezone(TIME_ZONE))
-                ref_date = dob.replace(
-                    year=dob.year + self.congress.youth_payment_discount_age
+        if self.congress.allow_youth_payment_discount and user.dob:  # skip if no date of birth set
+            dob = datetime.datetime.combine(user.dob, datetime.time(0, 0))
+            dob = timezone.make_aware(dob, pytz.timezone(TIME_ZONE))
+            ref_date = dob.replace(
+                year=dob.year + self.congress.youth_payment_discount_age
+            )
+            if self.congress.youth_payment_discount_date <= ref_date.date():
+                entry_fee = (
+                    float(entry_fee)
+                    * float(self.entry_youth_payment_discount)
+                    / 100.0
                 )
-                if self.congress.youth_payment_discount_date <= ref_date.date():
-                    entry_fee = (
-                        float(entry_fee)
-                        * float(self.entry_youth_payment_discount)
-                        / 100.0
+                entry_fee = cobalt_round(entry_fee)
+                discount = float(self.entry_fee) / players_per_entry - entry_fee
+                if reason == "Early discount":
+                    reason = "Youth+Early discount"
+                    description = "Youth+Early discount " + cobalt_credits(discount)
+                else:
+                    reason = "Youth discount"
+                    description = (
+                        "Youth discount %s%%" % self.entry_youth_payment_discount
                     )
-                    entry_fee = cobalt_round(entry_fee)
-                    discount = float(self.entry_fee) / players_per_entry - entry_fee
-                    if reason == "Early discount":
-                        reason = "Youth+Early discount"
-                        description = "Youth+Early discount " + cobalt_credits(discount)
-                    else:
-                        reason = "Youth discount"
-                        description = (
-                            "Youth discount %s%%" % self.entry_youth_payment_discount
-                        )
 
         # EventPlayerDiscount
         event_player_discount = (
@@ -451,10 +450,7 @@ class Event(models.Model):
             .exclude(entry_status="Cancelled")
             .count()
         )
-        if entries >= self.max_entries:
-            return True
-        else:
-            return False
+        return entries >= self.max_entries
 
 
 class Category(models.Model):
@@ -525,11 +521,11 @@ class EventEntry(models.Model):
         """go through sub level event entry players and see if this is now
         complete as well."""
 
-        all_complete = True
-        for event_entry_player in self.evententryplayer_set.all():
-            if event_entry_player.payment_status not in ["Paid", "Free"]:
-                all_complete = False
-                break
+        all_complete = all(
+            event_entry_player.payment_status in ["Paid", "Free"]
+            for event_entry_player in self.evententryplayer_set.all()
+        )
+
         if all_complete:
             self.entry_status = "Complete"
             self.entry_complete_date = timezone.now()
@@ -546,14 +542,12 @@ class EventEntry(models.Model):
         if member == self.primary_entrant:
             return True
 
-        allowed = (
+        return (
             EventEntryPlayer.objects.filter(event_entry=self)
             .filter(player=member)
             .exclude(event_entry__entry_status="Cancelled")
             .count()
         )
-
-        return allowed
 
 
 class EventEntryPlayer(models.Model):

@@ -20,11 +20,9 @@ def cobalt_time(value):
     hour_num = "%d" % int(hour_str)
 
     if min_str == "00":
-        time_str = f"{hour_num}{ampm_str}"
+        return f"{hour_num}{ampm_str}"
     else:
-        time_str = f"{hour_num}:{min_str}{ampm_str}"
-
-    return time_str
+        return f"{hour_num}:{min_str}{ampm_str}"
 
 
 # custom filter for datetime to format as full date
@@ -82,11 +80,7 @@ def cobalt_credits(credits):
     except ValueError:
         return mark_safe(None)
 
-    if credits == 1.0:
-        word = "credit"
-    else:
-        word = "credits"
-
+    word = "credit" if credits == 1.0 else "credits"
     try:
         if int(credits) == credits:
             credits = int(credits)

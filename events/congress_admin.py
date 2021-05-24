@@ -520,11 +520,7 @@ def admin_event_csv_scoring(request, event_id):
     response["Content-Disposition"] = f"attachment; filename={event} - Scoring.csv"
 
     writer = csv.writer(response)
-    if event.player_format == "Pairs":
-        title = "Pair No"
-    else:
-        title = "Team No"
-
+    title = "Pair No" if event.player_format == "Pairs" else "Team No"
     # Event Entry details
     header = [
         title,
@@ -541,9 +537,7 @@ def admin_event_csv_scoring(request, event_id):
 
     writer.writerow(header)
 
-    count = 1
-
-    for entry in entries:
+    for count, entry in enumerate(entries, start=1):
         entry_line = 1
         for row in entry.evententryplayer_set.all():
             data_row = [
@@ -570,12 +564,10 @@ def admin_event_csv_scoring(request, event_id):
             entry_line += 1
         # add extra blank rows for teams if needed
         if event.player_format == "Teams":
-            for extra_lines in range(7 - entry_line):
+            for _ in range(7 - entry_line):
                 writer.writerow(
                     [count, "", "", "","", entry.primary_entrant.last_name.upper()]
                 )
-
-        count += 1
 
     # Log it
     EventLog(
@@ -709,13 +701,10 @@ def get_player_mp_stats(player):
     ):
         r = []
 
-    if len(r) == 0:
+    if not r:
         return "Unknown ABF no","Unknown ABF no"
     is_active = r[0]["IsActive"]
-    if is_active=="Y":
-        is_active="Active"
-    else:
-        is_active="Inactive"
+    is_active = "Active" if is_active=="Y" else "Inactive"
     return r[0]["TotalMPs"], is_active
 @login_required()
 def admin_event_log(request, event_id):
@@ -869,9 +858,10 @@ def admin_evententry_delete(request, evententry_id):
         # who was entered. If Fred paid for Bill's entry then Fred should get
         # the refund not Bill
 
-        refund_dict = {}
-        for event_entry_player in event_entry_players:
-            refund_dict[event_entry_player.player] = Decimal(0)
+        refund_dict = {
+            event_entry_player.player: Decimal(0)
+            for event_entry_player in event_entry_players
+        }
 
         for event_entry_player in event_entry_players:
             # check if we have a player who paid
@@ -894,16 +884,17 @@ def admin_evententry_delete(request, evententry_id):
                 except TypeError:
                     pass
 
-        for player_refund in refund_dict.keys():
+        for player_refund, value in refund_dict.items():
             event_entry.received += refund_dict[player_refund]
 
             initial.append(
                 {
                     "player_id": player_refund.id,
                     "player": f"{player_refund}",
-                    "refund": refund_dict[player_refund],
+                    "refund": value,
                 }
             )
+
 
         refund_form_set = RefundFormSet(initial=initial)
 
@@ -1030,47 +1021,44 @@ def admin_event_email(request, event_id):
         event_entry__entry_status="Cancelled"
     )
 
-    if request.method == "POST":
-        if form.is_valid():
-            subject = form.cleaned_data["subject"]
-            body = form.cleaned_data["body"]
+    if request.method == "POST" and form.is_valid():
+        subject = form.cleaned_data["subject"]
+        body = form.cleaned_data["body"]
 
-            if "test" in request.POST:
-                recipients = [request.user]
-            else:
-                recipients = []
-                for recipient in recipients_qs:
-                    recipients.append(recipient.player)
-            for recipient in recipients:
-                context = {
-                    "name": recipient.first_name,
-                    "title": subject,
-                    "email_body": body,
-                    "host": COBALT_HOSTNAME,
-                    "link": "/events/view",
-                    "link_text": "View Entry",
-                }
+        if "test" in request.POST:
+            recipients = [request.user]
+        else:
+            recipients = [recipient.player for recipient in recipients_qs]
+        for recipient in recipients:
+            context = {
+                "name": recipient.first_name,
+                "title": subject,
+                "email_body": body,
+                "host": COBALT_HOSTNAME,
+                "link": "/events/view",
+                "link_text": "View Entry",
+            }
 
-                html_msg = render_to_string(
-                    "notifications/email_with_button.html", context
-                )
+            html_msg = render_to_string(
+                "notifications/email_with_button.html", context
+            )
 
-                # send
-                contact_member(
-                    member=recipient,
-                    msg=f"Email about {event}",
-                    contact_type="Email",
-                    html_msg=html_msg,
-                    link="/events/view",
-                    subject=subject,
-                )
+            # send
+            contact_member(
+                member=recipient,
+                msg=f"Email about {event}",
+                contact_type="Email",
+                html_msg=html_msg,
+                link="/events/view",
+                subject=subject,
+            )
 
-            if "test" in request.POST:
-                msg = "Test message sent"
-            else:
-                msg = "%s message(s) sent" % (len(recipients))
+        if "test" in request.POST:
+            msg = "Test message sent"
+        else:
+            msg = "%s message(s) sent" % (len(recipients))
 
-            messages.success(request, msg, extra_tags="cobalt-message-success")
+        messages.success(request, msg, extra_tags="cobalt-message-success")
 
     return render(
         request,
@@ -1458,10 +1446,10 @@ def admin_event_offsystem_pp_batch(request, event_id):
     for event_entry_player in event_entry_players:
         event_entry_player.outstanding = event_entry_player.entry_fee - event_entry_player.payment_received
 
-    event_entry_players_list = []
-    for event_entry_player in event_entry_players:
-        event_entry_players_list.append((event_entry_player.id, event_entry_player.player.full_name))
-
+    event_entry_players_list = [
+        (event_entry_player.id, event_entry_player.player.full_name)
+        for event_entry_player in event_entry_players
+    ]
 
     if request.method == "POST":
 

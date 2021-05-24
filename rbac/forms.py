@@ -61,10 +61,7 @@ class AddGroup(forms.Form):
             .distinct("name_qualifier", "name_item")
             .values_list("name_qualifier")
         )
-        whole_tree = []
-        for query in whole_tree_qs:
-            whole_tree.append(query[0])
-
+        whole_tree = [query[0] for query in whole_tree_qs]
         # load whole admin tree - where things could be
         whole_tree_qs = RBACAdminTree.objects.all().distinct("tree").values_list("tree")
         for query in whole_tree_qs:

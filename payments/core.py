@@ -104,12 +104,7 @@ def get_balance(member):
     """
 
     last_tran = MemberTransaction.objects.filter(member=member).last()
-    if last_tran:
-        balance = float(last_tran.balance)
-    else:
-        balance = 0.0
-
-    return balance
+    return float(last_tran.balance) if last_tran else 0.0
 
 
 ################################
@@ -143,84 +138,83 @@ def stripe_manual_payment_intent(request):
 
     """
 
-    if request.method == "POST":
-        data = json.loads(request.body)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"})
+    data = json.loads(request.body)
 
-        # check data - do not trust it
-        try:
-            payload_cents = int(float(data["amount"]) * 100.0)
-            payload_cobalt_pay_id = data["id"]
-        except KeyError:
-            log_event(
-                request=request,
-                user=request.user.full_name,
-                severity="ERROR",
-                source="Payments",
-                sub_source="stripe_manual_payment_intent",
-                message="Invalid payload: %s" % data,
-            )
-            return JsonResponse({"error": "Invalid payload"})
-
-        # load our StripeTransaction
-        try:
-            our_trans = StripeTransaction.objects.get(pk=payload_cobalt_pay_id)
-        except ObjectDoesNotExist:
-            log_event(
-                request=request,
-                user=request.user.full_name,
-                severity="ERROR",
-                source="Payments",
-                sub_source="stripe_manual_payment_intent",
-                message="StripeTransaction id: %s not found" % payload_cobalt_pay_id,
-            )
-
-            return JsonResponse({"error": "Invalid payload"})
-
-        # Check it
-        if float(our_trans.amount) * 100.0 != payload_cents:
-            log_event(
-                request=request,
-                user=request.user.full_name,
-                severity="ERROR",
-                source="Payments",
-                sub_source="stripe_manual_payment_intent",
-                message="StripeTransaction id: %s. Browser sent %s cents."
-                % (payload_cobalt_pay_id, payload_cents),
-            )
-            return JsonResponse({"error": "Invalid payload"})
-
-        stripe.api_key = STRIPE_SECRET_KEY
-        intent = stripe.PaymentIntent.create(
-            amount=payload_cents,
-            currency="aud",
-            metadata={
-                "cobalt_pay_id": payload_cobalt_pay_id,
-                "cobalt_tran_type": "Manual",
-            },
-        )
+    # check data - do not trust it
+    try:
+        payload_cents = int(float(data["amount"]) * 100.0)
+        payload_cobalt_pay_id = data["id"]
+    except KeyError:
         log_event(
             request=request,
             user=request.user.full_name,
-            severity="INFO",
+            severity="ERROR",
             source="Payments",
             sub_source="stripe_manual_payment_intent",
-            message="Created payment intent with Stripe. \
+            message="Invalid payload: %s" % data,
+        )
+        return JsonResponse({"error": "Invalid payload"})
+
+    # load our StripeTransaction
+    try:
+        our_trans = StripeTransaction.objects.get(pk=payload_cobalt_pay_id)
+    except ObjectDoesNotExist:
+        log_event(
+            request=request,
+            user=request.user.full_name,
+            severity="ERROR",
+            source="Payments",
+            sub_source="stripe_manual_payment_intent",
+            message="StripeTransaction id: %s not found" % payload_cobalt_pay_id,
+        )
+
+        return JsonResponse({"error": "Invalid payload"})
+
+    # Check it
+    if float(our_trans.amount) * 100.0 != payload_cents:
+        log_event(
+            request=request,
+            user=request.user.full_name,
+            severity="ERROR",
+            source="Payments",
+            sub_source="stripe_manual_payment_intent",
+            message="StripeTransaction id: %s. Browser sent %s cents."
+            % (payload_cobalt_pay_id, payload_cents),
+        )
+        return JsonResponse({"error": "Invalid payload"})
+
+    stripe.api_key = STRIPE_SECRET_KEY
+    intent = stripe.PaymentIntent.create(
+        amount=payload_cents,
+        currency="aud",
+        metadata={
+            "cobalt_pay_id": payload_cobalt_pay_id,
+            "cobalt_tran_type": "Manual",
+        },
+    )
+    log_event(
+        request=request,
+        user=request.user.full_name,
+        severity="INFO",
+        source="Payments",
+        sub_source="stripe_manual_payment_intent",
+        message="Created payment intent with Stripe. \
                   Cobalt_pay_id: %s"
-            % payload_cobalt_pay_id,
-        )
+        % payload_cobalt_pay_id,
+    )
 
-        # Update Status
-        our_trans.status = "Intent"
-        our_trans.save()
+    # Update Status
+    our_trans.status = "Intent"
+    our_trans.save()
 
-        return JsonResponse(
-            {
-                "publishableKey": STRIPE_PUBLISHABLE_KEY,
-                "clientSecret": intent.client_secret,
-            }
-        )
-
-    return JsonResponse({"error": "POST required"})
+    return JsonResponse(
+        {
+            "publishableKey": STRIPE_PUBLISHABLE_KEY,
+            "clientSecret": intent.client_secret,
+        }
+    )
 
 
 ####################################
@@ -969,7 +963,6 @@ def stripe_webhook_autosetup(event):
                 sub_source="stripe_webhook",
                 message=message,
             )
-            return HttpResponse(status=200)
         else:  # failure
             log_event(
                 user="Stripe API",
@@ -978,7 +971,7 @@ def stripe_webhook_autosetup(event):
                 sub_source="stripe_webhook",
                 message=message,
             )
-            return HttpResponse(status=200)
+        return HttpResponse(status=200)
     return HttpResponse(status=200)
 
 
@@ -1242,11 +1235,7 @@ def update_organisation(
     """ method to update an organisations account """
 
     last_tran = OrganisationTransaction.objects.filter(organisation=organisation).last()
-    if last_tran:
-        balance = last_tran.balance
-    else:
-        balance = 0.0
-
+    balance = last_tran.balance if last_tran else 0.0
     act = OrganisationTransaction()
     act.organisation = organisation
     act.member = member
@@ -1258,11 +1247,7 @@ def update_organisation(
 
     act.save()
 
-    if member:
-        user = member.full_name
-    else:
-        user = "Unknown"
-
+    user = member.full_name if member else "Unknown"
     log_event(
         user=user,
         severity="INFO",
@@ -1302,17 +1287,13 @@ def auto_topup_member(member, topup_required=None, payment_type="Auto Top Up"):
 
     stripe.api_key = STRIPE_SECRET_KEY
 
-    if not member.stripe_auto_confirmed == "On":
+    if member.stripe_auto_confirmed != "On":
         return (False, "Member not set up for Auto Top Up")
 
     if not member.stripe_customer_id:
         return (False, "No Stripe customer id found")
 
-    if topup_required:
-        amount = topup_required
-    else:
-        amount = member.auto_amount
-
+    amount = topup_required or member.auto_amount
     # Get payment method id for this customer from Stripe
     try:
         paylist = stripe.PaymentMethod.list(
@@ -1487,11 +1468,7 @@ def org_balance(organisation):
 
     # get balance
     last_tran = OrganisationTransaction.objects.filter(organisation=organisation).last()
-    if last_tran:
-        balance = last_tran.balance
-    else:
-        balance = 0.0
-
+    balance = last_tran.balance if last_tran else 0.0
     return float(balance)
 
 

@@ -27,10 +27,7 @@ class Command(BaseCommand):
         orgs = Organisation.objects.all()
         for org in orgs:
             if org.type == "Club":
-                if org.state == "" or org.state == " ":
-                    state = "UNKNOWN"
-                else:
-                    state = org.state
+                state = "UNKNOWN" if org.state in ["", " "] else org.state
                 item = org.name.replace(" ", "-")
                 qualifier = f"admin.clubs.{state}"
                 description = f"{org.name} Admins"

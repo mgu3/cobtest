@@ -358,37 +358,35 @@ def post_edit(request, post_id):
 
         return rbac_forbidden(request, role)
 
-    else:
+    if request.method == "POST":
+        if "publish" in request.POST:  # Publish
+            form = PostForm(request.POST, instance=post)
+            if form.is_valid():
 
-        if request.method == "POST":
-            if "publish" in request.POST:  # Publish
-                form = PostForm(request.POST, instance=post)
-                if form.is_valid():
-
-                    post = form.save(commit=False)
-                    post.last_change_date = timezone.now()
-                    post.save()
-                    messages.success(
-                        request, "Post edited", extra_tags="cobalt-message-success"
-                    )
-                    return redirect("forums:post_detail", pk=post.pk)
-
-            elif "delete" in request.POST:  # Delete
-                post.delete()
+                post = form.save(commit=False)
+                post.last_change_date = timezone.now()
+                post.save()
                 messages.success(
-                    request, "Post deleted", extra_tags="cobalt-message-success"
+                    request, "Post edited", extra_tags="cobalt-message-success"
                 )
-                return redirect("forums:forums")
+                return redirect("forums:post_detail", pk=post.pk)
 
-            else:  # Maybe cancel hit or back button - reload page
-                return redirect("forums:post_edit", post_id=post_id)
+        elif "delete" in request.POST:  # Delete
+            post.delete()
+            messages.success(
+                request, "Post deleted", extra_tags="cobalt-message-success"
+            )
+            return redirect("forums:forums")
 
-        # see which forums are blocked for this user - load a list of the others
-        blocked_forums = rbac_user_blocked_for_model(
-            user=request.user, app="forums", model="forum", action="create"
-        )
-        valid_forums = Forum.objects.exclude(id__in=blocked_forums)
-        form = PostForm(valid_forums=valid_forums, instance=post)
+        else:  # Maybe cancel hit or back button - reload page
+            return redirect("forums:post_edit", post_id=post_id)
+
+    # see which forums are blocked for this user - load a list of the others
+    blocked_forums = rbac_user_blocked_for_model(
+        user=request.user, app="forums", model="forum", action="create"
+    )
+    valid_forums = Forum.objects.exclude(id__in=blocked_forums)
+    form = PostForm(valid_forums=valid_forums, instance=post)
 
     return render(
         request,
@@ -516,11 +514,7 @@ def forum_list(request):
         detail["latest_title"] = latest_title
         detail["latest_date"] = latest_date
         detail["forum_type"] = forum.forum_type
-        if forum.id in forum_follows:
-            detail["follows"] = True
-        else:
-            detail["follows"] = False
-
+        detail["follows"] = forum.id in forum_follows
         forums_all.append(detail)
 
     if rbac_user_has_role(request.user, "forums.admin.edit"):
@@ -577,13 +571,11 @@ def follow_forum_ajax(request, forum_id):
     """
 
     forum = get_object_or_404(Forum, pk=forum_id)
-    if ForumFollow.objects.filter(forum=forum, user=request.user).count() == 0:
-        follow = ForumFollow(forum=forum, user=request.user)
-        follow.save()
-        return HttpResponse("ok")
-    else:
+    if ForumFollow.objects.filter(forum=forum, user=request.user).count() != 0:
         return HttpResponse("already following")
-    return HttpResponse("Invalid request")
+    follow = ForumFollow(forum=forum, user=request.user)
+    follow.save()
+    return HttpResponse("ok")
 
 
 @login_required()
@@ -721,39 +713,38 @@ def comment_edit_common(request, comment, comment_type):
     ):
         return rbac_forbidden(request, role)
 
-    else:
-        # access is okay
-        if request.method == "POST":
-            form = CommentForm(request.POST, instance=comment)
-            if form.is_valid():
+    # access is okay
+    if request.method == "POST":
+        form = CommentForm(request.POST, instance=comment)
+        if form.is_valid():
 
-                comment = form.save(commit=False)
-                comment.last_change_date = timezone.now()
+            comment = form.save(commit=False)
+            comment.last_change_date = timezone.now()
 
-                # Mark as edited by moderator unless own comment
-                if is_moderator and comment.author != request.user:
-                    comment.last_changed_by = "Moderator"
-                else:
-                    comment.last_changed_by = request.user.first_name
-                comment.save()
-                messages.success(
-                    request, "Comment edited", extra_tags="cobalt-message-success"
-                )
-                if comment_type == "c1":
-                    target = f"#target_{comment.id}"
-                elif comment_type == "c2":
-                    target = f"#target_{comment.comment1.id}_{comment.id}"
-
-                url = (
-                    reverse("forums:post_detail", kwargs={"pk": comment.post.pk})
-                    + target
-                )
-                return redirect(url)
-
+            # Mark as edited by moderator unless own comment
+            if is_moderator and comment.author != request.user:
+                comment.last_changed_by = "Moderator"
             else:
-                print(form.errors)
+                comment.last_changed_by = request.user.first_name
+            comment.save()
+            messages.success(
+                request, "Comment edited", extra_tags="cobalt-message-success"
+            )
+            if comment_type == "c1":
+                target = f"#target_{comment.id}"
+            elif comment_type == "c2":
+                target = f"#target_{comment.comment1.id}_{comment.id}"
 
-        form = CommentForm(instance=comment)
+            url = (
+                reverse("forums:post_detail", kwargs={"pk": comment.post.pk})
+                + target
+            )
+            return redirect(url)
+
+        else:
+            print(form.errors)
+
+    form = CommentForm(instance=comment)
 
     return render(
         request,
@@ -894,36 +885,37 @@ def unblock_user(request, user_id, forum_id):
 def report_abuse(request):
     """ Ajax call to report a post or comment that someone doesn't like """
 
-    if request.method == "POST":
-        data = json.loads(request.body.decode("utf-8"))
-        text_type = data["text_type"]
-        id = int(data["id"])
-        reason = data["reason"]
+    if request.method != "POST":
+        return
 
-        # Handle the different types of objects
-        if text_type == "Post":
-            post = get_object_or_404(Post, pk=id)
-            c1 = None
-            c2 = None
-            author = post.author
+    data = json.loads(request.body.decode("utf-8"))
+    text_type = data["text_type"]
+    id = int(data["id"])
+    reason = data["reason"]
 
-        elif text_type == "C1":
-            c1 = get_object_or_404(Comment1, pk=id)
-            post = c1.post
-            c2 = None
-            author = c1.author
+    # Handle the different types of objects
+    if text_type == "Post":
+        post = get_object_or_404(Post, pk=id)
+        c1 = None
+        c2 = None
+        author = post.author
 
-        elif text_type == "C2":
-            c2 = get_object_or_404(Comment2, pk=id)
-            c1 = c2.comment1
-            post = c1.post
-            author = c2.author
+    elif text_type == "C1":
+        c1 = get_object_or_404(Comment1, pk=id)
+        post = c1.post
+        c2 = None
+        author = c1.author
 
-        notify_moderators_of_abuse(post, c1, c2, request.user, author, reason)
+    elif text_type == "C2":
+        c2 = get_object_or_404(Comment2, pk=id)
+        c1 = c2.comment1
+        post = c1.post
+        author = c2.author
 
-        response_data = {}
-        response_data["message"] = "Success"
-        return JsonResponse({"data": response_data})
+    notify_moderators_of_abuse(post, c1, c2, request.user, author, reason)
+
+    response_data = {"message": "Success"}
+    return JsonResponse({"data": response_data})
 
 
 def notify_moderators_of_abuse(post, c1, c2, user, author, reason):

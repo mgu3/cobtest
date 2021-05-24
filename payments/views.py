@@ -118,16 +118,9 @@ def statement_common(user):
         summary = requests.get(qry).json()[0]
     except IndexError:  # server down or some error
         # raise Http404
-        summary = {}
-        summary["IsActive"] = False
-        summary["HomeClubID"] = 0
-
+        summary = {"IsActive": False, "HomeClubID": 0}
     # Set active to a boolean
-    if summary["IsActive"] == "Y":
-        summary["IsActive"] = True
-    else:
-        summary["IsActive"] = False
-
+    summary["IsActive"] = summary["IsActive"] == "Y"
     # Get home club name
     qry = "%s/club/%s" % (GLOBAL_MPSERVER, summary["HomeClubID"])
     try:
@@ -137,17 +130,9 @@ def statement_common(user):
 
     # get balance
     last_tran = MemberTransaction.objects.filter(member=user).last()
-    if last_tran:
-        balance = last_tran.balance
-    else:
-        balance = "Nil"
-
+    balance = last_tran.balance if last_tran else "Nil"
     # get auto top up
-    if user.stripe_auto_confirmed == "On":
-        auto_button = True
-    else:
-        auto_button = False
-
+    auto_button = user.stripe_auto_confirmed == "On"
     events_list = MemberTransaction.objects.filter(member=user).order_by(
         "-created_date"
     )
@@ -254,9 +239,10 @@ def statement_org(request, org_id):
 
     organisation = get_object_or_404(Organisation, pk=org_id)
 
-    if not rbac_user_has_role(request.user, "payments.manage.%s.view" % org_id):
-        if not rbac_user_has_role(request.user, "payments.global.view"):
-            return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
+    if not rbac_user_has_role(
+        request.user, "payments.manage.%s.view" % org_id
+    ) and not rbac_user_has_role(request.user, "payments.global.view"):
+        return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
 
     # get balance
     balance = org_balance(organisation, True)
@@ -275,7 +261,7 @@ def statement_org(request, org_id):
 
     total = 0.0
     for item in summary:
-        total = total + float(item["total"])
+        total += float(item["total"])
 
     # get details
     events_list = OrganisationTransaction.objects.filter(
@@ -325,9 +311,10 @@ def statement_csv_org(request, org_id):
 
     organisation = get_object_or_404(Organisation, pk=org_id)
 
-    if not rbac_user_has_role(request.user, "payments.manage.%s.view" % org_id):
-        if not rbac_user_has_role(request.user, "payments.global.view"):
-            return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
+    if not rbac_user_has_role(
+        request.user, "payments.manage.%s.view" % org_id
+    ) and not rbac_user_has_role(request.user, "payments.global.view"):
+        return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
 
     # get details
     events_list = OrganisationTransaction.objects.filter(
@@ -395,9 +382,10 @@ def statement_org_summary_ajax(request, org_id, range):
 
         organisation = get_object_or_404(Organisation, pk=org_id)
 
-        if not rbac_user_has_role(request.user, "payments.manage.%s.view" % org_id):
-            if not rbac_user_has_role(request.user, "payments.global.view"):
-                return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
+        if not rbac_user_has_role(
+            request.user, "payments.manage.%s.view" % org_id
+        ) and not rbac_user_has_role(request.user, "payments.global.view"):
+            return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
 
         if range == "All":
             summary = (
@@ -421,7 +409,7 @@ def statement_org_summary_ajax(request, org_id, range):
 
     total = 0.0
     for item in summary:
-        total = total + float(item["total"])
+        total += float(item["total"])
 
     return render(
         request,
@@ -698,11 +686,7 @@ def member_transfer(request):
 
     # get balance
     last_tran = MemberTransaction.objects.filter(member=request.user).last()
-    if last_tran:
-        balance = last_tran.balance
-    else:
-        balance = "Nil"
-
+    balance = last_tran.balance if last_tran else "Nil"
     recents = (
         MemberTransaction.objects.filter(member=request.user)
         .exclude(other_member=None)
@@ -839,10 +823,7 @@ def cancel_auto_top_up(request):
             messages.info(
                 request, "Auto top up disabled", extra_tags="cobalt-message-success"
             )
-            return redirect("payments:payments")
-        else:
-            return redirect("payments:payments")
-
+        return redirect("payments:payments")
     balance = get_balance(request.user)
     return render(request, "payments/cancel_autotopup.html", {"balance": balance})
 
@@ -873,10 +854,9 @@ def statement_admin_summary(request):
     ).distinct("member")
 
     # exclude zeros
-    total_balance_members_list = []
-    for member in members_list:
-        if member.balance != 0:
-            total_balance_members_list.append(member)
+    total_balance_members_list = [
+        member for member in members_list if member.balance != 0
+    ]
 
     total_balance_members = 0
     members_with_balances = 0
@@ -892,11 +872,7 @@ def statement_admin_summary(request):
     ).distinct("organisation")
 
     # exclude zeros
-    total_balance_orgs_list = []
-    for org in orgs_list:
-        if org.balance != 0:
-            total_balance_orgs_list.append(org)
-
+    total_balance_orgs_list = [org for org in orgs_list if org.balance != 0]
     orgs_with_balances = 0
     total_balance_orgs = 0
     for item in total_balance_orgs_list:
@@ -1308,11 +1284,7 @@ def admin_members_with_balance(request):
     ).distinct("member")
 
     # exclude zeros
-    members = []
-    for member in members_list:
-        if member.balance != 0:
-            members.append(member)
-
+    members = [member for member in members_list if member.balance != 0]
     things = cobalt_paginator(request, members)
 
     return render(
@@ -1341,11 +1313,7 @@ def admin_orgs_with_balance(request):
     ).distinct("organisation")
 
     # exclude zeros
-    orgs = []
-    for org in orgs_list:
-        if org.balance != 0:
-            orgs.append(org)
-
+    orgs = [org for org in orgs_list if org.balance != 0]
     things = cobalt_paginator(request, orgs)
 
     return render(request, "payments/admin_orgs_with_balance.html", {"things": things})
@@ -1372,11 +1340,7 @@ def admin_members_with_balance_csv(request):
     ).distinct("member")
 
     # exclude zeros
-    members = []
-    for member in members_list:
-        if member.balance != 0:
-            members.append(member)
-
+    members = [member for member in members_list if member.balance != 0]
     local_dt = timezone.localtime(timezone.now(), TZ)
     today = dateformat.format(local_dt, "Y-m-d H:i:s")
 
@@ -1425,11 +1389,7 @@ def admin_orgs_with_balance_csv(request):
     ).distinct("organisation")
 
     # exclude zeros
-    orgs = []
-    for org in orgs_list:
-        if org.balance != 0:
-            orgs.append(org)
-
+    orgs = [org for org in orgs_list if org.balance != 0]
     local_dt = timezone.localtime(timezone.now(), TZ)
     today = dateformat.format(local_dt, "Y-m-d H:i:s")
 
@@ -1486,86 +1446,7 @@ def admin_view_manual_adjustments(request):
                 type="Manual Adjustment"
             ).filter(created_date__range=(from_date, to_date))
 
-            if "export" in request.POST:
-
-                local_dt = timezone.localtime(timezone.now(), TZ)
-                today = dateformat.format(local_dt, "Y-m-d H:i:s")
-
-                response = HttpResponse(content_type="text/csv")
-                response[
-                    "Content-Disposition"
-                ] = 'attachment; filename="manual-adjustments.csv"'
-
-                writer = csv.writer(response)
-                writer.writerow(
-                    [
-                        "Manual Adjustments",
-                        "Downloaded by %s" % request.user.full_name,
-                        today,
-                    ]
-                )
-
-                # Members
-
-                writer.writerow(
-                    [
-                        "Date",
-                        "Administrator",
-                        "Transaction Type",
-                        "User",
-                        "Description",
-                        "Amount",
-                    ]
-                )
-
-                for member in manual_member:
-                    local_dt = timezone.localtime(member.created_date, TZ)
-
-                    writer.writerow(
-                        [
-                            dateformat.format(local_dt, "Y-m-d H:i:s"),
-                            member.other_member,
-                            member.type,
-                            member.member,
-                            member.description,
-                            member.amount,
-                        ]
-                    )
-
-                # Organisations
-                writer.writerow("")
-                writer.writerow("")
-
-                writer.writerow(
-                    [
-                        "Date",
-                        "Administrator",
-                        "Transaction Type",
-                        "Club ID",
-                        "Organisation",
-                        "Description",
-                        "Amount",
-                    ]
-                )
-
-                for org in manual_org:
-                    local_dt = timezone.localtime(member.created_date, TZ)
-
-                    writer.writerow(
-                        [
-                            dateformat.format(local_dt, "Y-m-d H:i:s"),
-                            org.member,
-                            org.type,
-                            org.organisation.org_id,
-                            org.organisation,
-                            org.description,
-                            org.amount,
-                        ]
-                    )
-
-                return response
-
-            else:
+            if "export" not in request.POST:
                 return render(
                     request,
                     "payments/admin_view_manual_adjustments.html",
@@ -1575,6 +1456,83 @@ def admin_view_manual_adjustments(request):
                         "manual_org": manual_org,
                     },
                 )
+
+            local_dt = timezone.localtime(timezone.now(), TZ)
+            today = dateformat.format(local_dt, "Y-m-d H:i:s")
+
+            response = HttpResponse(content_type="text/csv")
+            response[
+                "Content-Disposition"
+            ] = 'attachment; filename="manual-adjustments.csv"'
+
+            writer = csv.writer(response)
+            writer.writerow(
+                [
+                    "Manual Adjustments",
+                    "Downloaded by %s" % request.user.full_name,
+                    today,
+                ]
+            )
+
+            # Members
+
+            writer.writerow(
+                [
+                    "Date",
+                    "Administrator",
+                    "Transaction Type",
+                    "User",
+                    "Description",
+                    "Amount",
+                ]
+            )
+
+            for member in manual_member:
+                local_dt = timezone.localtime(member.created_date, TZ)
+
+                writer.writerow(
+                    [
+                        dateformat.format(local_dt, "Y-m-d H:i:s"),
+                        member.other_member,
+                        member.type,
+                        member.member,
+                        member.description,
+                        member.amount,
+                    ]
+                )
+
+            # Organisations
+            writer.writerow("")
+            writer.writerow("")
+
+            writer.writerow(
+                [
+                    "Date",
+                    "Administrator",
+                    "Transaction Type",
+                    "Club ID",
+                    "Organisation",
+                    "Description",
+                    "Amount",
+                ]
+            )
+
+            for org in manual_org:
+                local_dt = timezone.localtime(member.created_date, TZ)
+
+                writer.writerow(
+                    [
+                        dateformat.format(local_dt, "Y-m-d H:i:s"),
+                        org.member,
+                        org.type,
+                        org.organisation.org_id,
+                        org.organisation,
+                        org.description,
+                        org.amount,
+                    ]
+                )
+
+            return response
 
         else:
             print(form.errors)
@@ -1626,9 +1584,9 @@ def admin_view_stripe_transactions(request):
                 .order_by("-created_date")
             )
 
+            stripe.api_key = STRIPE_SECRET_KEY
             for stripe_item in stripes:
                 stripe_item.amount_settle = (float(stripe_item.amount) - 0.3) * 0.9825
-                stripe.api_key = STRIPE_SECRET_KEY
                 if stripe_item.stripe_balance_transaction:
 
                     balance_tran = stripe.BalanceTransaction.retrieve(
@@ -1801,9 +1759,10 @@ def member_transfer_org(request, org_id):
 
     organisation = get_object_or_404(Organisation, pk=org_id)
 
-    if not rbac_user_has_role(request.user, "payments.manage.%s.view" % org_id):
-        if not rbac_user_has_role(request.user, "payments.global.view"):
-            return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
+    if not rbac_user_has_role(
+        request.user, "payments.manage.%s.view" % org_id
+    ) and not rbac_user_has_role(request.user, "payments.global.view"):
+        return rbac_forbidden(request, "payments.manage.%s.view" % org_id)
 
     balance = org_balance(organisation)
 

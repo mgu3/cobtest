@@ -232,23 +232,22 @@ def member_detail_m2m_ajax(request):
         Json array: member, clubs,  global org name.
     """
 
-    if request.method == "GET":
-        if "member_id" in request.GET:
-            member_id = request.GET.get("member_id")
-            member = get_object_or_404(User, pk=member_id)
-            clubs = MemberOrganisation.objects.filter(member=member)
-            if request.is_ajax:
-                global_org = settings.GLOBAL_ORG
-                html = render_to_string(
-                    template_name="accounts/member_ajax.html",
-                    context={
-                        "member": member,
-                        "clubs": clubs,
-                        "global_org": global_org,
-                    },
-                )
-                data_dict = {"data": html}
-                return JsonResponse(data=data_dict, safe=False)
+    if request.method == "GET" and "member_id" in request.GET:
+        member_id = request.GET.get("member_id")
+        member = get_object_or_404(User, pk=member_id)
+        clubs = MemberOrganisation.objects.filter(member=member)
+        if request.is_ajax:
+            global_org = settings.GLOBAL_ORG
+            html = render_to_string(
+                template_name="accounts/member_ajax.html",
+                context={
+                    "member": member,
+                    "clubs": clubs,
+                    "global_org": global_org,
+                },
+            )
+            data_dict = {"data": html}
+            return JsonResponse(data=data_dict, safe=False)
     return JsonResponse(data={"error": "Invalid request"})
 
 
@@ -451,31 +450,30 @@ def system_number_search_ajax(request):
         HttpResponse - either a message or a list of users in HTML format.
     """
 
-    if request.method == "GET":
-        exclude_list = [request.user.system_number, RBAC_EVERYONE, TBA_PLAYER]
+    if request.method != "GET":
+        return JsonResponse(data={"error": "Invalid request"})
+    exclude_list = [request.user.system_number, RBAC_EVERYONE, TBA_PLAYER]
 
-        if "system_number" in request.GET:
-            system_number = request.GET.get("system_number")
-            member = User.objects.filter(system_number=system_number).first()
-        else:
-            system_number = None
-            member = None
+    if "system_number" in request.GET:
+        system_number = request.GET.get("system_number")
+        member = User.objects.filter(system_number=system_number).first()
+    else:
+        system_number = None
+        member = None
 
-        if member and member.system_number not in exclude_list:
-            status = "Success"
-            msg = "Found member"
-            member_id = member.id
-        else:
-            status = "Not Found"
-            msg = f"No matches found for that {GLOBAL_ORG} number"
-            member_id = 0
+    if member and member.system_number not in exclude_list:
+        status = "Success"
+        msg = "Found member"
+        member_id = member.id
+    else:
+        status = "Not Found"
+        msg = f"No matches found for that {GLOBAL_ORG} number"
+        member_id = 0
 
-        data = {"member_id": member_id, "status": status, "msg": msg}
+    data = {"member_id": member_id, "status": status, "msg": msg}
 
-        data_dict = {"data": data}
-        return JsonResponse(data=data_dict, safe=False)
-
-    return JsonResponse(data={"error": "Invalid request"})
+    data_dict = {"data": data}
+    return JsonResponse(data=data_dict, safe=False)
 
 
 @login_required
@@ -504,9 +502,7 @@ def profile(request):
                 request, "Profile Updated", extra_tags="cobalt-message-success"
             )
         else:
-            errors = ""
-            for k in form.errors:
-                errors += f"{form.errors[k][0]}"
+            errors = "".join(f"{form.errors[k][0]}" for k in form.errors)
             messages.error(request, f"Profile is not updated. {errors}")
     else:
         # Fix DOB format for browser - expects DD/MM/YYYY
@@ -607,11 +603,7 @@ def public_profile(request, pk):
     )
 
     # Get tab id from URL - this means we are on this tab
-    if "tab" in request.GET:
-        tab = request.GET["tab"]
-    else:
-        tab = None
-
+    tab = request.GET["tab"] if "tab" in request.GET else None
     posts_active = None
     comment1s_active = None
     comment2s_active = None
@@ -711,8 +703,7 @@ def add_team_mate_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -737,8 +728,7 @@ def delete_team_mate_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -766,9 +756,7 @@ def toggle_team_mate_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
-    response_data["first_name"] = team_mate.team_mate.first_name
+    response_data = {"message": msg, "first_name": team_mate.team_mate.first_name}
     return JsonResponse({"data": response_data})
 
 

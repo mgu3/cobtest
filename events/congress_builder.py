@@ -107,9 +107,7 @@ def create_congress_wizard(request, step=1, congress_id=None):
     """
 
     # handle stepper on screen
-    step_list = {}
-    for i in range(1, 8):
-        step_list[i] = "btn-default"
+    step_list = {i: "btn-default" for i in range(1, 8)}
     step_list[step] = "btn-primary"
 
     # Step 1 - Create
