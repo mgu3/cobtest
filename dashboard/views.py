@@ -131,9 +131,7 @@ def get_posts(request):
             .order_by("-created_date")
         )
 
-    posts = cobalt_paginator(request, posts_list, 20)
-
-    return posts
+    return cobalt_paginator(request, posts_list, 20)
 
 
 def get_announcements_logged_out():
@@ -141,5 +139,4 @@ def get_announcements_logged_out():
         For now just return the latest 3 posts in Forum id=1
     """
 
-    posts = Post.objects.all().order_by("-created_date")[:3]
-    return posts
+    return Post.objects.all().order_by("-created_date")[:3]

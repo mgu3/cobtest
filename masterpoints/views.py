@@ -54,7 +54,7 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
     ):
         r = []
 
-    if len(r) == 0:
+    if not r:
 
         if retry:  # This isn't the first time we've been here
             messages.error(
@@ -75,11 +75,7 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
     summary = r[0]
 
     # Set active to a boolean
-    if summary["IsActive"] == "Y":
-        summary["IsActive"] = True
-    else:
-        summary["IsActive"] = False
-
+    summary["IsActive"] = summary["IsActive"] == "Y"
     # Get provisional month and year, anything this date or later is provisional
     qry = "%s/provisionaldate" % GLOBAL_MPSERVER
     data = requests.get(qry).json()[0]
@@ -123,7 +119,7 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
     # go back a year then move forward
     rolling_date = datetime.today() + relativedelta(years=-years)
 
-    for i in range(12 * years + 1):
+    for _ in range(12 * years + 1):
         year = rolling_date.strftime("%Y")
         month = rolling_date.strftime("%m")
         labels_key.append("%s-%s" % (year, month))
@@ -152,19 +148,19 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
         )
 
         # Its too slow to filter at the db so skip any month we don't want
-        if not d["PostingDate"] in chart_gold:
+        if d["PostingDate"] not in chart_gold:
             continue
 
         if d["MPColour"] == "Y":
-            gold = gold - float(d["mps"])
+            gold -= float(d["mps"])
             chart_gold[d["PostingDate"]] = chart_gold[d["PostingDate"]] + float(
                 d["mps"]
             )
         elif d["MPColour"] == "R":
-            red = red - float(d["mps"])
+            red -= float(d["mps"])
             chart_red[d["PostingDate"]] = chart_red[d["PostingDate"]] + float(d["mps"])
         elif d["MPColour"] == "G":
-            green = green - float(d["mps"])
+            green -= float(d["mps"])
             chart_green[d["PostingDate"]] = chart_green[d["PostingDate"]] + float(
                 d["mps"]
             )
@@ -173,21 +169,21 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
     running_gold = float(summary["TotalGold"])
     gold_series = []
     for l in reversed(labels_key):
-        running_gold = running_gold - chart_gold[l]
+        running_gold -= chart_gold[l]
         gold_series.append(float("%.2f" % running_gold))
     gold_series.reverse()
 
     running_red = float(summary["TotalRed"])
     red_series = []
     for l in reversed(labels_key):
-        running_red = running_red - chart_red[l]
+        running_red -= chart_red[l]
         red_series.append(float("%.2f" % running_red))
     red_series.reverse()
 
     running_green = float(summary["TotalGreen"])
     green_series = []
     for l in reversed(labels_key):
-        running_green = running_green - chart_green[l]
+        running_green -= chart_green[l]
         green_series.append(float("%.2f" % running_green))
     green_series.reverse()
 
@@ -206,11 +202,7 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
     bottom = {"gold": gold, "red": red, "green": green, "total": total}
 
     # Show bullets on lines or not
-    if years > 2:
-        show_point = "false"
-    else:
-        show_point = "true"
-
+    show_point = "false" if years > 2 else "true"
     # Show title every X points
     points_dict = {1: 1, 2: 3, 3: 5, 4: 12, 5: 12}
     try:
@@ -242,37 +234,34 @@ def masterpoints_detail(request, system_number=None, years=1, retry=False):
 
 @login_required()
 def masterpoints_search(request):
-    if request.method == "POST":
-        system_number = request.POST["system_number"]
-        last_name = request.POST["last_name"]
-        first_name = request.POST["first_name"]
-        if system_number:
-            return redirect("view/%s/" % system_number)
-        else:
-            if not first_name:  # last name only
-                matches = requests.get(
-                    "%s/lastname_search/%s" % (GLOBAL_MPSERVER, last_name)
-                ).json()
-            elif not last_name:  # first name only
-                matches = requests.get(
-                    "%s/firstname_search/%s" % (GLOBAL_MPSERVER, first_name)
-                ).json()
-            else:  # first and last names
-                matches = requests.get(
-                    "%s/firstlastname_search/%s/%s"
-                    % (GLOBAL_MPSERVER, first_name, last_name)
-                ).json()
-            if len(matches) == 1:
-                system_number = matches[0]["ABFNumber"]
-                return redirect("view/%s/" % system_number)
-            else:
-                return render(
-                    request,
-                    "masterpoints/masterpoints_search_results.html",
-                    {"matches": matches},
-                )
-    else:
+    if request.method != "POST":
         return redirect("view/%s/" % request.user.system_number)
+    system_number = request.POST["system_number"]
+    last_name = request.POST["last_name"]
+    first_name = request.POST["first_name"]
+    if system_number:
+        return redirect("view/%s/" % system_number)
+    if not first_name:  # last name only
+        matches = requests.get(
+            "%s/lastname_search/%s" % (GLOBAL_MPSERVER, last_name)
+        ).json()
+    elif not last_name:  # first name only
+        matches = requests.get(
+            "%s/firstname_search/%s" % (GLOBAL_MPSERVER, first_name)
+        ).json()
+    else:  # first and last names
+        matches = requests.get(
+            "%s/firstlastname_search/%s/%s"
+            % (GLOBAL_MPSERVER, first_name, last_name)
+        ).json()
+    if len(matches) != 1:
+        return render(
+            request,
+            "masterpoints/masterpoints_search_results.html",
+            {"matches": matches},
+        )
+    system_number = matches[0]["ABFNumber"]
+    return redirect("view/%s/" % system_number)
 
 
 def system_number_lookup(request):
@@ -369,17 +358,13 @@ def user_summary(system_number):
     ):
         r = []
 
-    if len(r) == 0:
+    if not r:
         return None
 
     summary = r[0]
 
     # Set active to a boolean
-    if summary["IsActive"] == "Y":
-        summary["IsActive"] = True
-    else:
-        summary["IsActive"] = False
-
+    summary["IsActive"] = summary["IsActive"] == "Y"
     # Get home club name
     qry = "%s/club/%s" % (GLOBAL_MPSERVER, summary["HomeClubID"])
     summary["home_club"] = requests.get(qry).json()[0]["ClubName"]

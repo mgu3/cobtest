@@ -55,10 +55,7 @@ def main_admin_screen(request):
     """ Shows the main admin screen - maybe shouldn't live in RBAC """
 
     payments_admin = rbac_user_role_list(request.user, "payments", "manage")
-    org_list = []
-    for item in payments_admin:
-        org_list.append(item[0])
-
+    org_list = [item[0] for item in payments_admin]
     orgs = Organisation.objects.filter(pk__in=org_list)
 
     payments_site_admin = rbac_user_has_role(request.user, "payments.global.view")
@@ -295,10 +292,7 @@ def admin_group_view(request, group_id):
     roles = RBACAdminGroupRole.objects.filter(group=group)
     trees = RBACAdminTree.objects.filter(group=group)
     user_list = users.values_list("member", flat=True)
-    if request.user.id in user_list:
-        is_admin = True
-    else:
-        is_admin = False
+    is_admin = request.user.id in user_list
     return render(
         request,
         "rbac/admin_group_view.html",
@@ -319,16 +313,15 @@ def group_delete(request, group_id):
     group = get_object_or_404(RBACGroup, pk=group_id)
     if not rbac_user_is_group_admin(request.user, group):
         return HttpResponse("You are not an admin for this group")
-    else:
-        if request.method == "POST":
-            group.delete()
-            messages.success(
-                request,
-                "Group successfully deleted.",
-                extra_tags="cobalt-message-success",
-            )
-            return redirect("rbac:access_screen")
-        return render(request, "rbac/group_delete.html", {"group": group})
+    if request.method == "POST":
+        group.delete()
+        messages.success(
+            request,
+            "Group successfully deleted.",
+            extra_tags="cobalt-message-success",
+        )
+        return redirect("rbac:access_screen")
+    return render(request, "rbac/group_delete.html", {"group": group})
 
 
 @login_required
@@ -338,16 +331,15 @@ def admin_group_delete(request, group_id):
     group = get_object_or_404(RBACAdminGroup, pk=group_id)
     if not rbac_user_is_group_admin(request.user, group):
         return HttpResponse("You are not an admin for this group")
-    else:
-        if request.method == "POST":
-            group.delete()
-            messages.success(
-                request,
-                "Admin Group successfully deleted.",
-                extra_tags="cobalt-message-success",
-            )
-            return redirect("rbac:access_screen")
-        return render(request, "rbac/admin_group_delete.html", {"group": group})
+    if request.method == "POST":
+        group.delete()
+        messages.success(
+            request,
+            "Admin Group successfully deleted.",
+            extra_tags="cobalt-message-success",
+        )
+        return redirect("rbac:access_screen")
+    return render(request, "rbac/admin_group_delete.html", {"group": group})
 
 
 @login_required
@@ -424,40 +416,39 @@ def group_edit(request, group_id):
     group = get_object_or_404(RBACGroup, pk=group_id)
     if not rbac_user_is_group_admin(request.user, group):
         return HttpResponse("You are not an admin for this group")
-    else:
-        if request.method == "POST":
-            form = AddGroup(request.POST, user=request.user, environment="rbac")
-            if form.is_valid():
-                group.name_item = form.cleaned_data["name_item"]
-                group.description = form.cleaned_data["description"]
-                group.save()
-                messages.success(
-                    request,
-                    "Group successfully updated.",
-                    extra_tags="cobalt-message-success",
-                )
-            else:
-                print(form.errors)
+    if request.method == "POST":
+        form = AddGroup(request.POST, user=request.user, environment="rbac")
+        if form.is_valid():
+            group.name_item = form.cleaned_data["name_item"]
+            group.description = form.cleaned_data["description"]
+            group.save()
+            messages.success(
+                request,
+                "Group successfully updated.",
+                extra_tags="cobalt-message-success",
+            )
         else:
-            form = AddGroup(user=request.user, environment="rbac")
-            form.fields["name_item"].initial = group.name_item
-            form.fields["description"].initial = group.description
+            print(form.errors)
+    else:
+        form = AddGroup(user=request.user, environment="rbac")
+        form.fields["name_item"].initial = group.name_item
+        form.fields["description"].initial = group.description
 
-        users = RBACUserGroup.objects.filter(group=group)
-        admin_roles = rbac_admin_all_rights(request.user)
-        roles = RBACGroupRole.objects.filter(group=group)
+    users = RBACUserGroup.objects.filter(group=group)
+    admin_roles = rbac_admin_all_rights(request.user)
+    roles = RBACGroupRole.objects.filter(group=group)
 
-        return render(
-            request,
-            "rbac/group_edit.html",
-            {
-                "form": form,
-                "group": group,
-                "users": users,
-                "roles": roles,
-                "admin_roles": admin_roles,
-            },
-        )
+    return render(
+        request,
+        "rbac/group_edit.html",
+        {
+            "form": form,
+            "group": group,
+            "users": users,
+            "roles": roles,
+            "admin_roles": admin_roles,
+        },
+    )
 
 
 @login_required
@@ -590,9 +581,7 @@ def rbac_tests(request):
         if "get_users_with_role" in request.POST:
             users = rbac_get_users_with_role(text)
             if users:
-                ans = ""
-                for user_inst in users:
-                    ans += "%s\n" % user_inst
+                ans = "".join("%s\n" % user_inst for user_inst in users)
             else:
                 ans = "Nothing found"
             last_query = "Get Users With Role"
@@ -610,9 +599,7 @@ def rbac_tests(request):
             ).first()
             if group:
                 admins = rbac_get_admins_for_group(group)
-                ans = ""
-                for admin in admins:
-                    ans += "%s\n" % admin.member
+                ans = "".join("%s\n" % admin.member for admin in admins)
             else:
                 ans = "Group not found"
             group = text
@@ -677,7 +664,7 @@ def rbac_tests(request):
         request,
         "rbac/tests.html",
         {
-            "ans": ans,
+            "ans": ans_swal,
             "ans_swal": ans_swal,
             "member_id": userid,
             "text": text,

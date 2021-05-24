@@ -99,8 +99,7 @@ def rbac_add_user_to_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -131,8 +130,7 @@ def rbac_add_user_to_admin_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -165,11 +163,7 @@ def rbac_add_role_to_group_ajax(request):
 
         # must be both an admin for this group (able to edit this part of the tree)
         # and have rights to this role.
-        if model_id:
-            role_str = f"{app}.{model}.{model_id}"
-        else:
-            role_str = f"{app}.{model}"
-
+        role_str = f"{app}.{model}.{model_id}" if model_id else f"{app}.{model}"
         role_ok = rbac_user_is_role_admin(request.user, role_str)
         group_ok = rbac_user_is_group_admin(request.user, group)
 
@@ -190,8 +184,7 @@ def rbac_add_role_to_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -217,11 +210,7 @@ def rbac_add_role_to_admin_group_ajax(request):
 
         group = get_object_or_404(RBACAdminGroup, pk=group_id)
 
-        if model_id:
-            role_str = f"{app}.{model}.{model_id}"
-        else:
-            role_str = f"{app}.{model}"
-
+        role_str = f"{app}.{model}.{model_id}" if model_id else f"{app}.{model}"
         if rbac_user_is_role_admin(request.user, role_str):
             rbac_add_role_to_admin_group(
                 group=group, app=app, model=model, model_id=model_id,
@@ -233,8 +222,7 @@ def rbac_add_role_to_admin_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -258,8 +246,7 @@ def rbac_get_action_for_model_ajax(request):
         )
     else:
         msg = "Invalid request"
-        response_data = {}
-        response_data["message"] = msg
+        response_data = {"message": msg}
         return JsonResponse({"data": response_data})
 
     html = render_to_string(
@@ -298,8 +285,7 @@ def rbac_delete_user_from_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -330,8 +316,7 @@ def rbac_delete_user_from_admin_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -375,8 +360,7 @@ def rbac_delete_role_from_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})
 
 
@@ -410,6 +394,5 @@ def rbac_delete_role_from_admin_group_ajax(request):
     else:
         msg = "Invalid request"
 
-    response_data = {}
-    response_data["message"] = msg
+    response_data = {"message": msg}
     return JsonResponse({"data": response_data})

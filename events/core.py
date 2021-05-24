@@ -213,7 +213,7 @@ def send_notifications(route_payload, payment_user):
             email_dic[congress][event].append(player)
 
     # now build the emails
-    for congress in email_dic.keys():
+    for congress in email_dic:
 
         # build a list of all players so we can set them each up a custom email
         player_email = {}  # email to send keyed by player
@@ -226,7 +226,7 @@ def send_notifications(route_payload, payment_user):
                     player_included[player.player] = False
 
         # build start of email for this congress
-        for player in player_email.keys():
+        for player in player_email:
             if player == payment_user:
                 player_email[
                     player
@@ -260,13 +260,13 @@ def send_notifications(route_payload, payment_user):
             sub_msg += f"<td style='text-align: right' class='receipt-figure'>{player.event_entry.entry_status}</tr>"
 
             # add this row if player is in the event - no point otherwise
-            for player in player_email.keys():
+            for player in player_email:
 
                 if player_included[player]:
                     player_email[player] += sub_msg
                     player_included[player] = False
 
-        for player in player_email.keys():
+        for player in player_email:
 
             # Close table
             player_email[player] += "</table><br>"
@@ -336,11 +336,11 @@ def send_notifications(route_payload, payment_user):
             )
 
     # Notify conveners
-    for congress in email_dic.keys():
+    for congress in email_dic:
         for event in email_dic[congress].keys():
             player_string = f"<table><tr><td><b>Name</b><td><b>{GLOBAL_ORG} No.</b><td><b>Payment Method</b><td><b>Status</b></tr>"
+            PAYMENT_TYPES_DICT = dict(PAYMENT_TYPES)
             for player in email_dic[congress][event]:
-                PAYMENT_TYPES_DICT = dict(PAYMENT_TYPES)
                 payment_type_str = PAYMENT_TYPES_DICT[player.payment_type]
                 player_string += f"<tr><td>{player.player.full_name}<td>{player.player.system_number}<td>{payment_type_str}<td>{player.payment_status}</tr>"
             player_string += "</table>"

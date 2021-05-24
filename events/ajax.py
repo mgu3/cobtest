@@ -47,7 +47,7 @@ import json
 from datetime import datetime
 
 @login_required()
-def get_all_congress_ajax(request) :
+def get_all_congress_ajax(request):
     #     {
     #   "id": "1",
     #   "name": "Tiger Nixon",
@@ -65,10 +65,12 @@ def get_all_congress_ajax(request) :
     congressList = []
     for congress in congresses:
         try:
-            data_entry = dict()
-            data_entry["congress"] = congress.name 
-            data_entry["club"] = congress.congress_master.org.name
-            data_entry["date_start"] = congress.entry_open_date.strftime("%y/%m/%d")
+            data_entry = {
+                "congress": congress.name,
+                "club": congress.congress_master.org.name,
+                "date_start": congress.entry_open_date.strftime("%y/%m/%d"),
+            }
+
             data_entry["date_end"] = congress.entry_close_date.strftime("%y/%m/%d")
             data_entry["actions"] = {"id":congress.id,
             "edit":congress.user_is_convener(request.user),
@@ -146,8 +148,7 @@ def delete_event_ajax(request):
 
     event.delete()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -167,8 +168,7 @@ def delete_category_ajax(request):
 
     category.delete()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -188,8 +188,7 @@ def delete_session_ajax(request):
 
     session.delete()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -210,9 +209,10 @@ def fee_for_user_ajax(request):
         "entry_fee": entry_fee,
         "description": description,
         "discount": discount,
+        "message": "Success",
     }
 
-    response_data["message"] = "Success"
+
     return JsonResponse({"data": response_data})
 
 
@@ -313,8 +313,7 @@ def add_category_ajax(request):
     category = Category(event=event, description=text)
     category.save()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -353,8 +352,7 @@ def admin_offsystem_pay_ajax(request):
     # Check if parent complete
     event_entry_player.event_entry.check_if_paid()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -391,8 +389,7 @@ def admin_offsystem_unpay_ajax(request):
     # Check if parent complete
     event_entry_player.event_entry.check_if_paid()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -431,8 +428,7 @@ def admin_offsystem_pay_pp_ajax(request):
     # Check if parent complete
     event_entry_player.event_entry.check_if_paid()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -469,8 +465,7 @@ def admin_offsystem_unpay_pp_ajax(request):
     # Check if parent complete
     event_entry_player.event_entry.check_if_paid()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -531,69 +526,194 @@ def admin_player_discount_delete_ajax(request):
 def check_player_entry_ajax(request):
     """ Check if a player is already entered in an event """
 
-    if request.method == "GET":
-        member_id = request.GET["member_id"]
-        event_id = request.GET["event_id"]
+    if request.method != "GET":
+        return
+    member_id = request.GET["member_id"]
+    event_id = request.GET["event_id"]
 
-        member = get_object_or_404(User, pk=member_id)
-        event = get_object_or_404(Event, pk=event_id)
+    member = get_object_or_404(User, pk=member_id)
+    event = get_object_or_404(Event, pk=event_id)
 
-        if member.id == TBA_PLAYER:
-            return JsonResponse({"message": "Not Entered"})
+    if member.id == TBA_PLAYER:
+        return JsonResponse({"message": "Not Entered"})
 
-        event_entry = (
-            EventEntryPlayer.objects.filter(player=member)
-            .filter(event_entry__event=event)
-            .exclude(event_entry__entry_status="Cancelled")
-            .count()
-        )
+    event_entry = (
+        EventEntryPlayer.objects.filter(player=member)
+        .filter(event_entry__event=event)
+        .exclude(event_entry__entry_status="Cancelled")
+        .count()
+    )
 
-        if event_entry:
-            return JsonResponse({"message": "Already Entered"})
-        else:
-            return JsonResponse({"message": "Not Entered"})
+    if event_entry:
+        return JsonResponse({"message": "Already Entered"})
+    else:
+        return JsonResponse({"message": "Not Entered"})
 
 
 @login_required()
 def change_player_entry_ajax(request):
     """ Change a player in an event. Also update entry_fee if required """
 
-    if request.method == "GET":
-        member_id = request.GET["member_id"]
-        event_entry_player_id = request.GET["player_event_entry"]
+    if request.method != "GET":
+        return
 
-        member = get_object_or_404(User, pk=member_id)
-        event_entry_player = get_object_or_404(
-            EventEntryPlayer, pk=event_entry_player_id
+    member_id = request.GET["member_id"]
+    event_entry_player_id = request.GET["player_event_entry"]
+
+    member = get_object_or_404(User, pk=member_id)
+    event_entry_player = get_object_or_404(
+        EventEntryPlayer, pk=event_entry_player_id
+    )
+    event_entry = get_object_or_404(
+        EventEntry, pk=event_entry_player.event_entry.id
+    )
+    event = get_object_or_404(Event, pk=event_entry.event.id)
+    congress = get_object_or_404(Congress, pk=event.congress.id)
+
+    # check access on the parent event_entry
+    if not event_entry.user_can_change(request.user):
+        return JsonResponse({"message": "Access Denied"})
+
+    # update
+    old_player = event_entry_player.player
+    event_entry_player.player = member
+    event_entry_player.save()
+
+    # Log it
+    EventLog(
+        event=event,
+        actor=request.user,
+        event_entry=event_entry,
+        action=f"Swapped {member} in for {old_player}",
+    ).save()
+
+    # notify both members
+    context = {
+        "name": event_entry_player.player.first_name,
+        "title": "Event Entry - %s" % congress,
+        "email_body": f"{request.user.full_name} has added you to {event}.<br><br>",
+        "host": COBALT_HOSTNAME,
+        "link": "/events/view",
+        "link_text": "View Entry",
+    }
+
+    html_msg = render_to_string("notifications/email_with_button.html", context)
+
+    # send
+    contact_member(
+        member=event_entry_player.player,
+        msg="Entry to %s" % congress,
+        contact_type="Email",
+        html_msg=html_msg,
+        link="/events/view",
+        subject="Event Entry - %s" % congress,
+    )
+
+    context = {
+        "name": old_player.first_name,
+        "title": "Event Entry - %s" % congress,
+        "email_body": f"{request.user.full_name} has removed you from {event}.<br><br>",
+        "host": COBALT_HOSTNAME,
+    }
+
+    html_msg = render_to_string("notifications/email.html", context)
+
+    # send
+    contact_member(
+        member=old_player,
+        msg="Entry to %s" % congress,
+        contact_type="Email",
+        html_msg=html_msg,
+        link="/events/view",
+        subject="Event Entry - %s" % congress,
+    )
+
+    # tell the conveners
+    email_msg = f"""{request.user.full_name} has changed an entry for {event.event_name} in {congress}.
+                  <br><br>
+                  <b>{old_player}</b> has been removed.
+                  <br><br>
+                  <b>{event_entry_player.player}</b> has been added.
+                  <br><br>
+                  """
+
+    notify_conveners(
+        congress=congress,
+        event=event,
+        subject=f"{event} - {event_entry_player.player} added to entry",
+        email_msg=email_msg,
+    )
+
+    # Check entry fee - they can keep an early entry discount but nothing else
+    #    original_entry_fee = event_entry_player.entry_fee
+
+    # default value
+    return_html = "Player successfully changed."
+
+    # Check if this is a free entry - player 5 or 6
+    if event_entry_player.payment_type == "Free":
+        return JsonResponse({"message": "Success", "html": return_html})
+
+    # get the entry fee based upon when the entry was created
+    entry_fee, discount, reason, description = event.entry_fee_for(
+        event_entry_player.player,
+        event_entry_player.event_entry.first_created_date.date(),
+    )
+
+    event_entry_player.entry_fee = entry_fee
+    event_entry_player.reason = reason
+    event_entry_player.save()
+
+    # adjust for over or under payment after player change
+
+    difference = float(event_entry_player.payment_received) - float(
+        event_entry_player.entry_fee
+    )
+
+    if difference > 0:  # overpaid
+        # create payments in org account
+        update_organisation(
+            organisation=event_entry_player.event_entry.event.congress.congress_master.org,
+            amount=-difference,
+            description=f"{event_entry_player.event_entry.event.event_name} - {event_entry_player.paid_by} partial refund",
+            source="Events",
+            log_msg=event_entry_player.event_entry.event.event_name,
+            sub_source="events_callback",
+            payment_type="Refund",
+            member=event_entry_player.paid_by,
         )
-        event_entry = get_object_or_404(
-            EventEntry, pk=event_entry_player.event_entry.id
+
+        # create payment for user
+        update_account(
+            member=event_entry_player.paid_by,
+            amount=difference,
+            description=f"Refund for {event_entry_player.event_entry.event.event_name} - {event_entry_player.player}",
+            source="Events",
+            sub_source="events_callback",
+            payment_type="Refund",
+            log_msg=event_entry_player.event_entry.event.event_name,
+            organisation=event_entry_player.event_entry.event.congress.congress_master.org,
         )
-        event = get_object_or_404(Event, pk=event_entry.event.id)
-        congress = get_object_or_404(Congress, pk=event.congress.id)
 
-        # check access on the parent event_entry
-        if not event_entry.user_can_change(request.user):
-            return JsonResponse({"message": "Access Denied"})
-
-        # update
-        old_player = event_entry_player.player
-        event_entry_player.player = member
+        # update entry payment amount
+        event_entry_player.payment_received = event_entry_player.entry_fee
         event_entry_player.save()
+
+        return_html = f"Player successfully changed. A refund of {difference} credits was paid to {event_entry_player.paid_by}"
 
         # Log it
         EventLog(
             event=event,
             actor=request.user,
             event_entry=event_entry,
-            action=f"Swapped {member} in for {old_player}",
+            action=f"Triggered refund for {member} - {difference} credits",
         ).save()
 
-        # notify both members
+        # notify member of refund
         context = {
-            "name": event_entry_player.player.first_name,
-            "title": "Event Entry - %s" % congress,
-            "email_body": f"{request.user.full_name} has added you to {event}.<br><br>",
+            "name": event_entry_player.paid_by.first_name,
+            "title": "Refund from - %s" % event,
+            "email_body": f"A refund of {difference} credits has been made to your {BRIDGE_CREDITS} accounts from {event}.<br><br>",
             "host": COBALT_HOSTNAME,
             "link": "/events/view",
             "link_text": "View Entry",
@@ -603,18 +723,141 @@ def change_player_entry_ajax(request):
 
         # send
         contact_member(
-            member=event_entry_player.player,
-            msg="Entry to %s" % congress,
+            member=event_entry_player.paid_by,
+            msg="Refund from - %s" % event,
             contact_type="Email",
             html_msg=html_msg,
             link="/events/view",
-            subject="Event Entry - %s" % congress,
+            subject="Refund from  %s" % event,
         )
 
+        # tell the conveners
+        msg = f"""{event_entry_player.paid_by.full_name} has been refunded
+                      {difference} {BRIDGE_CREDITS} for {event.event_name} in {congress}
+                      due to change of player from {old_player} to {event_entry_player.player}.
+                      <br><br>
+                      """
+        notify_conveners(
+            congress,
+            event,
+            f"{event} - {event_entry_player.paid_by} refund",
+            msg,
+        )
+
+    # if money is owing then update paid status on event_entry
+    if difference < 0:
+        difference = -difference
+        event_entry_player.payment_status = "Unpaid"
+        event_entry_player.save()
+        event_entry.check_if_paid()
+        return_html = f"Player succesfully changed. There are {difference} credits required for this player entry."
+
+    # Check if payment status should be paid. e.g. enter as Youth and swap to another, then back to Youth
+    if event_entry_player.entry_fee == event_entry_player.payment_received:
+        event_entry_player.payment_status = "Paid"
+        event_entry_player.save()
+        event_entry.check_if_paid()
+
+    # the HTML screen reloads but we need to tell the user what happened first
+    return JsonResponse({"message": "Success", "html": return_html})
+
+
+@login_required()
+def add_player_to_existing_entry_ajax(request):
+    """ Add a player to a team from the edit entry screen """
+
+    if request.method != "GET":
+        return
+
+    event_entry_id = request.GET["event_entry_id"]
+    event_entry = get_object_or_404(EventEntry, pk=event_entry_id)
+
+    # check access
+    if not event_entry.user_can_change(request.user):
+        return JsonResponse({"message": "Access Denied"})
+
+    # check if already full
+    event_entry_player_count = (
+        EventEntryPlayer.objects.filter(event_entry=event_entry)
+        .exclude(event_entry__entry_status="Cancelled")
+        .count()
+    )
+
+    if (
+        event_entry_player_count
+        >= EVENT_PLAYER_FORMAT_SIZE[event_entry.event.player_format]
+    ):
+        return JsonResponse({"message": "Maximum player number reached"})
+
+    # if we got here everything is okay, create new player
+    # this will always be the 5th or 6th player in a team and will be free
+    event_entry_player = EventEntryPlayer()
+    tba = get_object_or_404(User, pk=TBA_PLAYER)
+    event_entry_player.player = tba
+    event_entry_player.event_entry = event_entry
+    event_entry_player.entry_fee = 0
+    event_entry_player.payment_status = "Free"
+    event_entry_player.payment_type = "Free"
+    event_entry_player.save()
+
+    # log it
+    EventLog(
+        event=event_entry.event,
+        actor=request.user,
+        action="Added a player",
+        event_entry=event_entry,
+    ).save()
+
+    return JsonResponse({"message": "Success"})
+
+
+@login_required()
+def delete_player_from_entry_ajax(request):
+    """ Delete a player (5 or 6 only) from a team from the edit entry screen """
+
+    if request.method != "GET":
+        return
+
+    event_entry_player_id = request.GET["event_entry_player_id"]
+    event_entry_player = get_object_or_404(
+        EventEntryPlayer, pk=event_entry_player_id
+    )
+
+    # check access
+    if not event_entry_player.event_entry.user_can_change(request.user):
+        return JsonResponse({"message": "Access Denied"})
+
+    # check if extra player
+    event_entry_player_count = (
+        EventEntryPlayer.objects.filter(event_entry=event_entry_player.event_entry)
+        .exclude(event_entry__entry_status="Cancelled")
+        .count()
+    )
+
+    if event_entry_player_count < 5:
+        return JsonResponse({"message": "Not an extra player. Cannot delete."})
+
+    # log it
+    EventLog(
+        event=event_entry_player.event_entry.event,
+        actor=request.user,
+        action=f"Deleted {event_entry_player.player} from team",
+        event_entry=event_entry_player.event_entry,
+    ).save()
+
+    # if we got here everything is okay
+    event_entry_player.delete()
+
+    if event_entry_player.player.id != TBA_PLAYER:
+
+        event = event_entry_player.event_entry.event
+        congress = event_entry_player.event_entry.event.congress
+
+        # notify member
         context = {
-            "name": old_player.first_name,
-            "title": "Event Entry - %s" % congress,
-            "email_body": f"{request.user.full_name} has removed you from {event}.<br><br>",
+            "name": event_entry_player.player.first_name,
+            "title": "Removal from Team in %s" % event,
+            "email_body": f"{request.user.full_name} has removed you from their team in {event}.<br><br>",
             "host": COBALT_HOSTNAME,
         }
 
@@ -622,270 +865,29 @@ def change_player_entry_ajax(request):
 
         # send
         contact_member(
-            member=old_player,
-            msg="Entry to %s" % congress,
+            member=event_entry_player.player,
+            msg="Removal from %s" % event,
             contact_type="Email",
             html_msg=html_msg,
             link="/events/view",
-            subject="Event Entry - %s" % congress,
+            subject="Removal from %s" % event,
         )
 
         # tell the conveners
-        email_msg = f"""{request.user.full_name} has changed an entry for {event.event_name} in {congress}.
-                  <br><br>
-                  <b>{old_player}</b> has been removed.
-                  <br><br>
-                  <b>{event_entry_player.player}</b> has been added.
-                  <br><br>
-                  """
-
-        notify_conveners(
-            congress=congress,
-            event=event,
-            subject=f"{event} - {event_entry_player.player} added to entry",
-            email_msg=email_msg,
-        )
-
-        # Check entry fee - they can keep an early entry discount but nothing else
-        #    original_entry_fee = event_entry_player.entry_fee
-
-        # default value
-        return_html = "Player successfully changed."
-
-        # Check if this is a free entry - player 5 or 6
-        if event_entry_player.payment_type == "Free":
-            return JsonResponse({"message": "Success", "html": return_html})
-
-        # get the entry fee based upon when the entry was created
-        entry_fee, discount, reason, description = event.entry_fee_for(
-            event_entry_player.player,
-            event_entry_player.event_entry.first_created_date.date(),
-        )
-
-        event_entry_player.entry_fee = entry_fee
-        event_entry_player.reason = reason
-        event_entry_player.save()
-
-        # adjust for over or under payment after player change
-
-        difference = float(event_entry_player.payment_received) - float(
-            event_entry_player.entry_fee
-        )
-
-        if difference > 0:  # overpaid
-            # create payments in org account
-            update_organisation(
-                organisation=event_entry_player.event_entry.event.congress.congress_master.org,
-                amount=-difference,
-                description=f"{event_entry_player.event_entry.event.event_name} - {event_entry_player.paid_by} partial refund",
-                source="Events",
-                log_msg=event_entry_player.event_entry.event.event_name,
-                sub_source="events_callback",
-                payment_type="Refund",
-                member=event_entry_player.paid_by,
-            )
-
-            # create payment for user
-            update_account(
-                member=event_entry_player.paid_by,
-                amount=difference,
-                description=f"Refund for {event_entry_player.event_entry.event.event_name} - {event_entry_player.player}",
-                source="Events",
-                sub_source="events_callback",
-                payment_type="Refund",
-                log_msg=event_entry_player.event_entry.event.event_name,
-                organisation=event_entry_player.event_entry.event.congress.congress_master.org,
-            )
-
-            # update entry payment amount
-            event_entry_player.payment_received = event_entry_player.entry_fee
-            event_entry_player.save()
-
-            return_html = f"Player successfully changed. A refund of {difference} credits was paid to {event_entry_player.paid_by}"
-
-            # Log it
-            EventLog(
-                event=event,
-                actor=request.user,
-                event_entry=event_entry,
-                action=f"Triggered refund for {member} - {difference} credits",
-            ).save()
-
-            # notify member of refund
-            context = {
-                "name": event_entry_player.paid_by.first_name,
-                "title": "Refund from - %s" % event,
-                "email_body": f"A refund of {difference} credits has been made to your {BRIDGE_CREDITS} accounts from {event}.<br><br>",
-                "host": COBALT_HOSTNAME,
-                "link": "/events/view",
-                "link_text": "View Entry",
-            }
-
-            html_msg = render_to_string("notifications/email_with_button.html", context)
-
-            # send
-            contact_member(
-                member=event_entry_player.paid_by,
-                msg="Refund from - %s" % event,
-                contact_type="Email",
-                html_msg=html_msg,
-                link="/events/view",
-                subject="Refund from  %s" % event,
-            )
-
-            # tell the conveners
-            msg = f"""{event_entry_player.paid_by.full_name} has been refunded
-                      {difference} {BRIDGE_CREDITS} for {event.event_name} in {congress}
-                      due to change of player from {old_player} to {event_entry_player.player}.
-                      <br><br>
-                      """
-            notify_conveners(
-                congress,
-                event,
-                f"{event} - {event_entry_player.paid_by} refund",
-                msg,
-            )
-
-        # if money is owing then update paid status on event_entry
-        if difference < 0:
-            difference = -difference
-            event_entry_player.payment_status = "Unpaid"
-            event_entry_player.save()
-            event_entry.check_if_paid()
-            return_html = f"Player succesfully changed. There are {difference} credits required for this player entry."
-
-        # Check if payment status should be paid. e.g. enter as Youth and swap to another, then back to Youth
-        if event_entry_player.entry_fee == event_entry_player.payment_received:
-            event_entry_player.payment_status = "Paid"
-            event_entry_player.save()
-            event_entry.check_if_paid()
-
-        # the HTML screen reloads but we need to tell the user what happened first
-        return JsonResponse({"message": "Success", "html": return_html})
-
-
-@login_required()
-def add_player_to_existing_entry_ajax(request):
-    """ Add a player to a team from the edit entry screen """
-
-    if request.method == "GET":
-        event_entry_id = request.GET["event_entry_id"]
-        event_entry = get_object_or_404(EventEntry, pk=event_entry_id)
-
-        # check access
-        if not event_entry.user_can_change(request.user):
-            return JsonResponse({"message": "Access Denied"})
-
-        # check if already full
-        event_entry_player_count = (
-            EventEntryPlayer.objects.filter(event_entry=event_entry)
-            .exclude(event_entry__entry_status="Cancelled")
-            .count()
-        )
-
-        if (
-            event_entry_player_count
-            >= EVENT_PLAYER_FORMAT_SIZE[event_entry.event.player_format]
-        ):
-            return JsonResponse({"message": "Maximum player number reached"})
-
-        # if we got here everything is okay, create new player
-        # this will always be the 5th or 6th player in a team and will be free
-        event_entry_player = EventEntryPlayer()
-        tba = get_object_or_404(User, pk=TBA_PLAYER)
-        event_entry_player.player = tba
-        event_entry_player.event_entry = event_entry
-        event_entry_player.entry_fee = 0
-        event_entry_player.payment_status = "Free"
-        event_entry_player.payment_type = "Free"
-        event_entry_player.save()
-
-        # log it
-        EventLog(
-            event=event_entry.event,
-            actor=request.user,
-            action="Added a player",
-            event_entry=event_entry,
-        ).save()
-
-        return JsonResponse({"message": "Success"})
-
-
-@login_required()
-def delete_player_from_entry_ajax(request):
-    """ Delete a player (5 or 6 only) from a team from the edit entry screen """
-
-    if request.method == "GET":
-        event_entry_player_id = request.GET["event_entry_player_id"]
-        event_entry_player = get_object_or_404(
-            EventEntryPlayer, pk=event_entry_player_id
-        )
-
-        # check access
-        if not event_entry_player.event_entry.user_can_change(request.user):
-            return JsonResponse({"message": "Access Denied"})
-
-        # check if extra player
-        event_entry_player_count = (
-            EventEntryPlayer.objects.filter(event_entry=event_entry_player.event_entry)
-            .exclude(event_entry__entry_status="Cancelled")
-            .count()
-        )
-
-        if event_entry_player_count < 5:
-            return JsonResponse({"message": "Not an extra player. Cannot delete."})
-
-        # log it
-        EventLog(
-            event=event_entry_player.event_entry.event,
-            actor=request.user,
-            action=f"Deleted {event_entry_player.player} from team",
-            event_entry=event_entry_player.event_entry,
-        ).save()
-
-        # if we got here everything is okay
-        event_entry_player.delete()
-
-        if event_entry_player.player.id != TBA_PLAYER:
-
-            event = event_entry_player.event_entry.event
-            congress = event_entry_player.event_entry.event.congress
-
-            # notify member
-            context = {
-                "name": event_entry_player.player.first_name,
-                "title": "Removal from Team in %s" % event,
-                "email_body": f"{request.user.full_name} has removed you from their team in {event}.<br><br>",
-                "host": COBALT_HOSTNAME,
-            }
-
-            html_msg = render_to_string("notifications/email.html", context)
-
-            # send
-            contact_member(
-                member=event_entry_player.player,
-                msg="Removal from %s" % event,
-                contact_type="Email",
-                html_msg=html_msg,
-                link="/events/view",
-                subject="Removal from %s" % event,
-            )
-
-            # tell the conveners
-            msg = f"""{event_entry_player.player.full_name} has been removed from the team
+        msg = f"""{event_entry_player.player.full_name} has been removed from the team
                       by {request.user.full_name} for {event.event_name} in {congress}.
                       <br><br>
                       The team is still complete.
                       <br><br>
                       """
-            notify_conveners(
-                congress,
-                event,
-                f"{event} - Extra player {event_entry_player.player} removed",
-                msg,
-            )
+        notify_conveners(
+            congress,
+            event,
+            f"{event} - Extra player {event_entry_player.player} removed",
+            msg,
+        )
 
-        return JsonResponse({"message": "Success"})
+    return JsonResponse({"message": "Success"})
 
 
 @login_required()
@@ -950,8 +952,7 @@ def admin_delete_bulletin_ajax(request):
 
     bulletin.delete()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -971,8 +972,7 @@ def admin_delete_download_ajax(request):
 
     download.delete()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -995,8 +995,7 @@ def delete_me_from_partnership_desk(request, event_id):
         ).save()
         partnership.delete()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -1046,8 +1045,7 @@ def contact_partnership_desk_person_ajax(request):
             subject="Partnership Message",
         )
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -1055,51 +1053,49 @@ def contact_partnership_desk_person_ajax(request):
 def change_payment_method_on_existing_entry_ajax(request):
     """ Ajax call from edit event entry screen to change payment method """
 
-    if request.method == "GET":
-        player_entry_id = request.GET["player_entry_id"]
-        payment_method = request.GET["payment_method"]
+    if request.method != "GET":
+        return JsonResponse({"message": "Invalid call"})
+    player_entry_id = request.GET["player_entry_id"]
+    payment_method = request.GET["payment_method"]
 
-        player_entry = get_object_or_404(EventEntryPlayer, pk=player_entry_id)
+    player_entry = get_object_or_404(EventEntryPlayer, pk=player_entry_id)
 
-        # Check access
-        if not player_entry.event_entry.user_can_change(request.user):
-            return JsonResponse({"message": "Access Denied"})
+    # Check access
+    if not player_entry.event_entry.user_can_change(request.user):
+        return JsonResponse({"message": "Access Denied"})
 
-        player_entry.payment_type = payment_method
-        if payment_method in ["bank-transfer", "cash", "cheque"]:
-            player_entry.payment_status = "Pending Manual"
-        else:
-            player_entry.payment_status = "Unpaid"
+    player_entry.payment_type = payment_method
+    if payment_method in ["bank-transfer", "cash", "cheque"]:
+        player_entry.payment_status = "Pending Manual"
+    else:
+        player_entry.payment_status = "Unpaid"
 
-        player_entry.save()
+    player_entry.save()
 
-        return JsonResponse({"message": "Success"})
-
-    return JsonResponse({"message": "Invalid call"})
+    return JsonResponse({"message": "Success"})
 
 
 @login_required()
 def admin_event_entry_notes_ajax(request):
     """ Ajax call from event entry screen to update notes """
 
-    if request.method == "POST":
-        data = json.loads(request.body.decode("utf-8"))
-        event_entry_id = int(data["id"])
-        notes = data["notes"]
+    if request.method != "POST":
+        return JsonResponse({"message": "Invalid call"})
+    data = json.loads(request.body.decode("utf-8"))
+    event_entry_id = int(data["id"])
+    notes = data["notes"]
 
-        event_entry = get_object_or_404(EventEntry, pk=event_entry_id)
+    event_entry = get_object_or_404(EventEntry, pk=event_entry_id)
 
-        # check access
-        role = "events.org.%s.edit" % event_entry.event.congress.congress_master.org.id
-        if not rbac_user_has_role(request.user, role):
-            return rbac_forbidden(request, role)
+    # check access
+    role = "events.org.%s.edit" % event_entry.event.congress.congress_master.org.id
+    if not rbac_user_has_role(request.user, role):
+        return rbac_forbidden(request, role)
 
-        event_entry.notes = notes
-        event_entry.save()
+    event_entry.notes = notes
+    event_entry.save()
 
-        return JsonResponse({"message": "Success"})
-
-    return JsonResponse({"message": "Invalid call"})
+    return JsonResponse({"message": "Success"})
 
 
 @login_required()

@@ -155,11 +155,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.dns_name:
-        dns = args.dns_name
-    else:
-        dns = args.env_name
-
+    dns = args.dns_name or args.env_name
     build_environment(args.env_name, args.env_type, args.varfile, dns)
 
 

@@ -44,10 +44,7 @@ for listener in listeners:
         if "TargetGroupArn" in default_action:
             target_group_arn = default_action["TargetGroupArn"]
             listener_arn = listener["ListenerArn"]
-            print(
-                "             Target Group ARN: %s" % default_action["TargetGroupArn"]
-            )
-
+            print("             Target Group ARN: %s" % target_group_arn)
     rules = elbv2.describe_rules(ListenerArn=listener["ListenerArn"])
     format_json(rules)
 

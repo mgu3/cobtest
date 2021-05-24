@@ -28,9 +28,8 @@ def org_search_ajax(request):
 
         if "orgname" not in request.GET:
             return HttpResponse("orgname missing from request")
-        else:
-            search_org_name = request.GET.get("orgname")
-            orgs = Organisation.objects.filter(name__icontains=search_org_name)
+        search_org_name = request.GET.get("orgname")
+        orgs = Organisation.objects.filter(name__icontains=search_org_name)
 
         if request.is_ajax:
             if orgs.count() > 30:
@@ -64,17 +63,16 @@ def org_detail_ajax(request):
         Json array: address etc.
     """
 
-    if request.method == "GET":
-        if "org_id" in request.GET:
-            org_id = request.GET.get("org_id")
-            org = get_object_or_404(Organisation, pk=org_id)
-            if request.is_ajax:
-                html = render_to_string(
-                    template_name="organisations/org_detail_ajax.html",
-                    context={"org": org},
-                )
-                data_dict = {"data": html, "org": org.name}
-                return JsonResponse(data=data_dict, safe=False)
+    if request.method == "GET" and "org_id" in request.GET:
+        org_id = request.GET.get("org_id")
+        org = get_object_or_404(Organisation, pk=org_id)
+        if request.is_ajax:
+            html = render_to_string(
+                template_name="organisations/org_detail_ajax.html",
+                context={"org": org},
+            )
+            data_dict = {"data": html, "org": org.name}
+            return JsonResponse(data=data_dict, safe=False)
     return JsonResponse(data={"error": "Invalid request"})
 
 
@@ -119,11 +117,6 @@ def org_balance(org, text=None):
     # get balance
     last_tran = OrganisationTransaction.objects.filter(organisation=org).last()
     if last_tran:
-        balance = last_tran.balance
+        return last_tran.balance
     else:
-        if text:
-            balance = "Nil"
-        else:
-            balance = 0.0
-
-    return balance
+        return "Nil" if text else 0.0

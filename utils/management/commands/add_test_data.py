@@ -54,7 +54,7 @@ class Command(BaseCommand):
         for liker in random.sample(liker_list, sample_size):
             like = LikePost(post=post, liker=liker)
             like.save()
-        for c1_counter in range(random.randrange(10)):
+        for _ in range(random.randrange(10)):
             text = self.random_paragraphs()
             c1 = Comment1(post=post, text=text, author=random.choice(user_list))
             c1.save()
@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 like.save()
             post.comment_count += 1
             post.save()
-            for c2_counter in range(random.randrange(10)):
+            for _ in range(random.randrange(10)):
                 text = self.random_paragraphs()
                 c2 = Comment2(
                     post=post, comment1=c1, text=text, author=random.choice(user_list)
@@ -84,7 +84,7 @@ class Command(BaseCommand):
     def random_paragraphs(self):
         """ generate a random paragraph """
         text = self.gen.paragraph()
-        for counter in range(random.randrange(10)):
+        for _ in range(random.randrange(10)):
             text += "\n\n" + self.gen.paragraph()
         return text
 
@@ -106,7 +106,7 @@ class Command(BaseCommand):
         ]
 
         text = self.gen.paragraph()
-        for counter in range(random.randrange(10)):
+        for _ in range(random.randrange(10)):
             type = random.randrange(8)
             if type == 5:  # no good reason
                 text += "<h2>%s</h2>" % self.gen.sentence()
@@ -215,10 +215,7 @@ class Command(BaseCommand):
                         elif key[:2] != "t.":  # exclude time
                             exec_cmd2 = f"module = import_module(f'{app}.models')\nfield_type=module.{model}._meta.get_field('{key}').get_internal_type()"
                             exec(exec_cmd2, globals())
-                            if (
-                                field_type == "CharField"  # noqa: F821
-                                or field_type == "TextField"  # noqa: F821
-                            ):  # noqa: F821
+                            if field_type in ["CharField", "TextField"]:  # noqa: F821
                                 exec_cmd += f".filter({key}='{value}')"
                             else:
                                 exec_cmd += f".filter({key}={value})"
@@ -268,27 +265,24 @@ class Command(BaseCommand):
                         except AttributeError:
                             pass
                         if key != "id" and key[:2] != "t.":
-                            if len(key) > 3:
-                                if key[:3] == "id.":  # foreign key
-                                    parts = key.split(".")
-                                    fkey = parts[1]
-                                    fapp = parts[2]
-                                    fmodel = parts[3]
-                                    try:
-                                        val = self.id_array[f"{fapp}.{fmodel}"][value]
-                                    except KeyError:
-                                        print("\n\nError\n")
-                                        print(row)
-                                        print(
-                                            f"Foreign key not found: {fapp}.{fmodel}: {value}"
-                                        )
-                                        print(
-                                            f"Check that the file with {app}.{model} has id {value} and that it is loaded before this file.\n"
-                                        )
-                                        sys.exit()
-                                    setattr(instance, fkey, val)
-                                else:
-                                    setattr(instance, key, value)
+                            if len(key) > 3 and key[:3] == "id.":  # foreign key
+                                parts = key.split(".")
+                                fkey = parts[1]
+                                fapp = parts[2]
+                                fmodel = parts[3]
+                                try:
+                                    val = self.id_array[f"{fapp}.{fmodel}"][value]
+                                except KeyError:
+                                    print("\n\nError\n")
+                                    print(row)
+                                    print(
+                                        f"Foreign key not found: {fapp}.{fmodel}: {value}"
+                                    )
+                                    print(
+                                        f"Check that the file with {app}.{model} has id {value} and that it is loaded before this file.\n"
+                                    )
+                                    sys.exit()
+                                setattr(instance, fkey, val)
                             else:
                                 setattr(instance, key, value)
                         if key[:2] == "t.":
@@ -355,8 +349,7 @@ class Command(BaseCommand):
         # create dummy Posts
         print("\nCreating dummy forum posts")
         print("Running", end="", flush=True)
-        count = 0
-        for post_counter in range(DUMMY_DATA_COUNT * 10):
+        for count, _ in enumerate(range(DUMMY_DATA_COUNT * 10), start=1):
 
             user_list = list(self.id_array["accounts.User"].values())
             user_list.remove(self.id_array["accounts.User"]["EVERYONE"])
@@ -370,7 +363,6 @@ class Command(BaseCommand):
             post.save()
             print(".", end="", flush=True)
             self.add_comments(post, user_list)
-            count += 1
             if count % 100 == 0:
                 print(count, flush=True)
         print("\n")

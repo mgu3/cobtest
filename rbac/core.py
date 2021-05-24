@@ -203,7 +203,7 @@ def rbac_user_has_role_exact(member, role):
     matches = RBACGroupRole.objects.filter(group__in=groups)
 
     for m in matches:
-        if m.role == role or m.role == all_role:
+        if m.role in [role, all_role]:
             return m.rule_type
 
     # no match
@@ -417,10 +417,7 @@ def rbac_user_has_role_explain(member, role):
 def allow_to_boolean(test_string):
     """ takes a string and returns True if it is "Allow" """
 
-    if test_string == "Allow":
-        return True
-    else:
-        return False
+    return test_string == "Allow"
 
 
 def role_to_parts(role):
@@ -437,11 +434,7 @@ def role_to_parts(role):
     model = parts[1]
     action = parts[-1]
 
-    if len(parts) == 4:
-        model_instance = parts[2]
-    else:
-        model_instance = None
-
+    model_instance = parts[2] if len(parts) == 4 else None
     return (app, model, model_instance, action)
 
 
@@ -563,7 +556,7 @@ def rbac_admin_all_rights(user):
             ret_str = "%s.%s.%s" % (m.app, m.model, m.model_id)
         else:
             ret_str = "%s.%s" % (m.app, m.model)
-        if not ret_str in ret:
+        if ret_str not in ret:
             ret.append(ret_str)
     return ret
 
@@ -629,10 +622,10 @@ def rbac_user_is_role_admin(member, role):
     if len(parts) == 3:
         role = ".".join(parts[:-1])
 
+        # compare strings not objects
+        role_str = "%s" % role
         # look for general rule
         for m in matches:
-            # compare strings not objects
-            role_str = "%s" % role
             m_str = "%s.%s" % (m.app, m.model)
 
             if m_str == role_str:
@@ -655,10 +648,7 @@ def rbac_user_is_admin_for_admin_group(member, group):
 
     users = RBACAdminUserGroup.objects.filter(group=group)
     user_list = users.values_list("member", flat=True)
-    if member.id in user_list:
-        return True
-    else:
-        return False
+    return member.id in user_list
 
 
 def rbac_access_in_english(user):
@@ -691,25 +681,16 @@ def rbac_access_in_english_sub(user, this_name):
     english = []
     for role in roles:
 
-        if role.rule_type == "Allow":
-            verb = "can"
-        else:
-            verb = "cannot"
-
-        if role.action == "all":
-            action_word = "do everything"
-        else:
-            action_word = role.action
-
+        verb = "can" if role.rule_type == "Allow" else "cannot"
+        action_word = "do everything" if role.action == "all" else role.action
         if role.model_id:
             desc = f"{this_name} {verb} {action_word} in {role.model} no. {role.model_id} in the application '{role.app}'."
         else:
             desc = f"{this_name} {verb} {action_word} in every {role.model} in the application '{role.app}'."
 
         # some specific hard coding
-        if role.app == "payments":
-            if role.model == "global":
-                desc = f"{this_name} {verb} {action_word} in {role.model} {role.app}."
+        if role.app == "payments" and role.model == "global":
+            desc = f"{this_name} {verb} {action_word} in {role.model} {role.app}."
 
         if role.app == "events":
             if role.model == "org":
@@ -798,11 +779,9 @@ def rbac_get_groups_for_role(role):
 
     (app, model, model_instance, action) = role_to_parts(role)
 
-    groups = RBACGroupRole.objects.filter(
+    return RBACGroupRole.objects.filter(
         app=app, model=model, model_id=model_instance
     ).filter(Q(action=action) | Q(action="All"))
-
-    return groups
 
 
 def rbac_get_users_in_group(groupname):
@@ -844,9 +823,7 @@ def rbac_get_users_with_role(role):
         .values("member")
     )
 
-    users = User.objects.filter(id__in=user_ids).order_by("first_name")
-
-    return users
+    return User.objects.filter(id__in=user_ids).order_by("first_name")
 
 
 def rbac_admin_tree_access(user):
@@ -865,8 +842,7 @@ def rbac_admin_tree_access(user):
         .distinct("tree")
         .values_list("tree")
     )
-    ret = [item for match in matches for item in match]
-    return ret
+    return [item for match in matches for item in match]
 
 
 def rbac_group_id_from_name(name_qualifier, name_item):
