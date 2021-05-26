@@ -1,27 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module type="PYTHON_MODULE" version="4">
-  <component name="FacetManager">
-    <facet type="django" name="Django">
-      <configuration>
-        <option name="rootFolder" value="$MODULE_DIR$" />
-        <option name="settingsModule" value="cobalt/settings.py" />
-        <option name="manageScript" value="manage.py" />
-        <option name="environment" value="&lt;map&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;STRIPE_SECRET_KEY&lt;/string&gt;&#10;    &lt;string&gt;sk_test_tnjlQRkdt1wH7XMIe6qt6hBF00tBWjSPGl&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;RDS_DB_NAME&lt;/string&gt;&#10;    &lt;string&gt;ebdb&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;AWS_SECRET_ACCESS_KEY&lt;/string&gt;&#10;    &lt;string&gt;NWuiLPyZR7LdbIpXFK8KmIVmVnlKJKSbxtxYJSKY&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;EMAIL_HOST&lt;/string&gt;&#10;    &lt;string&gt;email-smtp.ap-southeast-2.amazonaws.com&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;DEBUG&lt;/string&gt;&#10;    &lt;string&gt;True&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;SERVER_MAIL&lt;/string&gt;&#10;    &lt;string&gt;&amp;apos;ABF Dev - Errors&amp;lt;m@rkguthrie.com&amp;gt;&amp;apos;&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;RDS_HOSTNAME&lt;/string&gt;&#10;    &lt;string&gt;127.0.0.1&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;RDS_PASSWORD&lt;/string&gt;&#10;    &lt;string&gt;F1shcake&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;RDS_PORT&lt;/string&gt;&#10;    &lt;string&gt;5432&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;AWS_ACCESS_KEY_ID&lt;/string&gt;&#10;    &lt;string&gt;AKIA2UF2ZTTJQCXD4LUW&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;DUMMY_DATA_COUNT&lt;/string&gt;&#10;    &lt;string&gt;200&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;GLOBAL_MPSERVER&lt;/string&gt;&#10;    &lt;string&gt;http://masterpoints-test.eba-eantgkuf.ap-southeast-2.elasticbeanstalk.com&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;EMAIL_HOST_PASSWORD&lt;/string&gt;&#10;    &lt;string&gt;BPCzi1n6F4/yviEx68aU/aeeDXamCmplzU+z8T6Q7Efg&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;EMAIL_HOST_USER&lt;/string&gt;&#10;    &lt;string&gt;AKIA2UF2ZTTJZE3K6BSY&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;DEFAULT_FROM_EMAIL&lt;/string&gt;&#10;    &lt;string&gt;&amp;apos;ABF Dev&amp;lt;dev@abftech.com.au&amp;gt;&amp;apos;&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;RDS_USERNAME&lt;/string&gt;&#10;    &lt;string&gt;cobalt&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;  &lt;entry&gt;&#10;    &lt;string&gt;STRIPE_PUBLISHABLE_KEY&lt;/string&gt;&#10;    &lt;string&gt;pk_test_fE1LvnH8aQWUC11pj2ZL9Z8F000zhXsgaV&lt;/string&gt;&#10;  &lt;/entry&gt;&#10;&lt;/map&gt;" />
-        <option name="doNotUseTestRunner" value="false" />
-        <option name="trackFilePattern" value="" />
-      </configuration>
-    </facet>
-  </component>
-  <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
-    <orderEntry type="inheritedJdk" />
-    <orderEntry type="sourceFolder" forTests="false" />
-  </component>
+<module version="4">
   <component name="PyDocumentationSettings">
-    <option name="format" value="PLAIN" />
-    <option name="myDocStringFormat" value="Plain" />
+    <option name="format" value="GOOGLE" />
+    <option name="myDocStringFormat" value="Google" />
   </component>
   <component name="TemplatesService">
-    <option name="TEMPLATE_CONFIGURATION" value="Django" />
+    <option name="TEMPLATE_FOLDERS">
+      <list>
+        <option value="$MODULE_DIR$/logs/templates" />
+      </list>
+    </option>
+  </component>
+  <component name="TestRunnerService">
+    <option name="PROJECT_TEST_RUNNER" value="pytest" />
   </component>
 </module>
