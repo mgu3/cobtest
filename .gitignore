@@ -8,6 +8,7 @@ db.sqlite3*
 /media
 .DS_Store
 .coverage
+.idea
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
