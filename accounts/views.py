@@ -169,7 +169,7 @@ def loggedout(request):
 
 
 @login_required()
-def change_password(request):
+def change_password(request) -> HttpResponse:
     """Password change form
 
     Allows a user to change their password.
@@ -316,6 +316,7 @@ def search_ajax(request):
     """
 
     msg = ""
+    members = None
 
     if request.method == "GET":
 
@@ -451,31 +452,30 @@ def system_number_search_ajax(request):
         HttpResponse - either a message or a list of users in HTML format.
     """
 
-    if request.method == "GET":
-        exclude_list = [request.user.system_number, RBAC_EVERYONE, TBA_PLAYER]
+    if request.method != "GET":
+        return JsonResponse(data={"error": "Invalid request"})
+    exclude_list = [request.user.system_number, RBAC_EVERYONE, TBA_PLAYER]
 
-        if "system_number" in request.GET:
-            system_number = request.GET.get("system_number")
-            member = User.objects.filter(system_number=system_number).first()
-        else:
-            system_number = None
-            member = None
+    if "system_number" in request.GET:
+        system_number = request.GET.get("system_number")
+        member = User.objects.filter(system_number=system_number).first()
+    else:
+        system_number = None
+        member = None
 
-        if member and member.system_number not in exclude_list:
-            status = "Success"
-            msg = "Found member"
-            member_id = member.id
-        else:
-            status = "Not Found"
-            msg = f"No matches found for that {GLOBAL_ORG} number"
-            member_id = 0
+    if member and member.system_number not in exclude_list:
+        status = "Success"
+        msg = "Found member"
+        member_id = member.id
+    else:
+        status = "Not Found"
+        msg = f"No matches found for that {GLOBAL_ORG} number"
+        member_id = 0
 
-        data = {"member_id": member_id, "status": status, "msg": msg}
+    data = {"member_id": member_id, "status": status, "msg": msg}
 
-        data_dict = {"data": data}
-        return JsonResponse(data=data_dict, safe=False)
-
-    return JsonResponse(data={"error": "Invalid request"})
+    data_dict = {"data": data}
+    return JsonResponse(data=data_dict, safe=False)
 
 
 @login_required
@@ -504,9 +504,7 @@ def profile(request):
                 request, "Profile Updated", extra_tags="cobalt-message-success"
             )
         else:
-            errors = ""
-            for k in form.errors:
-                errors += f"{form.errors[k][0]}"
+            errors = "".join(f"{form.errors[k][0]}" for k in form.errors)
             messages.error(request, f"Profile is not updated. {errors}")
     else:
         # Fix DOB format for browser - expects DD/MM/YYYY
@@ -607,11 +605,7 @@ def public_profile(request, pk):
     )
 
     # Get tab id from URL - this means we are on this tab
-    if "tab" in request.GET:
-        tab = request.GET["tab"]
-    else:
-        tab = None
-
+    tab = request.GET["tab"] if "tab" in request.GET else None
     posts_active = None
     comment1s_active = None
     comment2s_active = None

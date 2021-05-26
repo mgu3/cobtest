@@ -969,7 +969,6 @@ def stripe_webhook_autosetup(event):
                 sub_source="stripe_webhook",
                 message=message,
             )
-            return HttpResponse(status=200)
         else:  # failure
             log_event(
                 user="Stripe API",
@@ -978,7 +977,7 @@ def stripe_webhook_autosetup(event):
                 sub_source="stripe_webhook",
                 message=message,
             )
-            return HttpResponse(status=200)
+        return HttpResponse(status=200)
     return HttpResponse(status=200)
 
 
@@ -1098,7 +1097,6 @@ def stripe_webhook(request):
         # TODO - change to 400
         return HttpResponse(status=200)
 
-    return HttpResponse(status=200)
 
 
 #########################

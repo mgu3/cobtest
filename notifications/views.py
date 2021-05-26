@@ -157,7 +157,6 @@ def get_notifications_for_user(user):
         tuple: Count of notifications and List of notifications which themselves are tuples
     """
 
-    notifications = []
     note_count = InAppNotification.objects.filter(
         member=user, acknowledged=False
     ).count()
@@ -165,10 +164,14 @@ def get_notifications_for_user(user):
         "-created_date"
     )[:10]
 
-    for note in notes:
-        notifications.append(
-            (note.message, reverse("notifications:passthrough", kwargs={"id": note.id}))
+    notifications = [
+        (
+            note.message,
+            reverse("notifications:passthrough", kwargs={"id": note.id}),
         )
+        for note in notes
+    ]
+
     if note_count > 0:
         notifications.append(
             ("---- Show all notifications ----", reverse("notifications:homepage"))

@@ -332,7 +332,7 @@ def view_congress(request, congress_id, fullscreen=False):
 
 
 @login_required()
-def checkout(request):
+def checkout(request) -> object:
     """ Checkout view - make payments, get details """
 
     basket_items = BasketItem.objects.filter(player=request.user)
@@ -1112,7 +1112,7 @@ def third_party_checkout_entry(request, event_entry_id):
         PlayerBatchId(player=request.user, batch_id=unique_id).save()
 
         for event_entry_player in event_entry_players:
-            if(event_entry_player.payment_received-event_entry_player.entry_fee ==0): # player had already paid don't do anything
+            if event_entry_player.payment_received-event_entry_player.entry_fee ==0: # player had already paid don't do anything
                 continue
             event_entry_player.batch_id = unique_id
             event_entry_player.payment_type = "my-system-dollars"
@@ -1171,13 +1171,12 @@ def global_admin_edit_congress_master(request, id):
     )
     rbac_group_id = rbac_group_id_from_name(qualifier, "congresses")
 
-    if request.method == "POST":
-        if form.is_valid:
-            form.save()
-            messages.success(
-                request, "Congress Master added", extra_tags="cobalt-message-success"
-            )
-            return redirect("events:global_admin_congress_masters")
+    if request.method == "POST" and form.is_valid:
+        form.save()
+        messages.success(
+            request, "Congress Master added", extra_tags="cobalt-message-success"
+        )
+        return redirect("events:global_admin_congress_masters")
 
     return render(
         request,
@@ -1200,13 +1199,12 @@ def global_admin_create_congress_master(request):
         return rbac_forbidden(request, role)
 
     form = CongressMasterForm(request.POST or None)
-    if request.method == "POST":
-        if form.is_valid:
-            form.save()
-            messages.success(
-                request, "Congress Master added", extra_tags="cobalt-message-success"
-            )
-            return redirect("events:global_admin_congress_masters")
+    if request.method == "POST" and form.is_valid:
+        form.save()
+        messages.success(
+            request, "Congress Master added", extra_tags="cobalt-message-success"
+        )
+        return redirect("events:global_admin_congress_masters")
 
     return render(
         request, "events/global_admin_congress_master_create.html", {"form": form}
@@ -1519,11 +1517,7 @@ def view_event_partnership_desk(request, congress_id, event_id):
     role = "events.org.%s.edit" % event.congress.congress_master.org.id
     admin = rbac_user_has_role(request.user, role)
 
-    if partnerships.filter(player=request.user):
-        already = True
-    else:
-        already = False
-
+    already = bool(partnerships.filter(player=request.user))
     return render(
         request,
         "events/view_event_partnership_desk.html",

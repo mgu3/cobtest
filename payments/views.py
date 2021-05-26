@@ -30,12 +30,11 @@ import datetime
 import requests
 import stripe
 import pytz
-import json
 from django.utils import timezone, dateformat
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse
 from django.db.models import Sum
 from django.db import transaction
 from django.contrib import messages
@@ -44,19 +43,16 @@ from logs.views import log_event
 from cobalt.settings import (
     STRIPE_SECRET_KEY,
     GLOBAL_MPSERVER,
-    AUTO_TOP_UP_LOW_LIMIT,
     AUTO_TOP_UP_MAX_AMT,
     AUTO_TOP_UP_DEFAULT_AMT,
     GLOBAL_ORG,
     GLOBAL_ORG_ID,
     GLOBAL_CURRENCY_SYMBOL,
-    GLOBAL_CURRENCY_NAME,
     BRIDGE_CREDITS,
     TIME_ZONE,
     COBALT_HOSTNAME,
 )
 from .forms import (
-    TestTransaction,
     MemberTransfer,
     MemberTransferOrg,
     ManualTopup,
@@ -91,6 +87,7 @@ from django.utils.timezone import make_aware
 
 TZ = pytz.timezone(TIME_ZONE)
 
+
 ####################
 # statement_common #
 ####################
@@ -118,16 +115,9 @@ def statement_common(user):
         summary = requests.get(qry).json()[0]
     except IndexError:  # server down or some error
         # raise Http404
-        summary = {}
-        summary["IsActive"] = False
-        summary["HomeClubID"] = 0
-
+        summary = {"IsActive": False, "HomeClubID": 0}
     # Set active to a boolean
-    if summary["IsActive"] == "Y":
-        summary["IsActive"] = True
-    else:
-        summary["IsActive"] = False
-
+    summary["IsActive"] = summary["IsActive"] == "Y"
     # Get home club name
     qry = "%s/club/%s" % (GLOBAL_MPSERVER, summary["HomeClubID"])
     try:
@@ -137,17 +127,9 @@ def statement_common(user):
 
     # get balance
     last_tran = MemberTransaction.objects.filter(member=user).last()
-    if last_tran:
-        balance = last_tran.balance
-    else:
-        balance = "Nil"
-
+    balance = last_tran.balance if last_tran else "Nil"
     # get auto top up
-    if user.stripe_auto_confirmed == "On":
-        auto_button = True
-    else:
-        auto_button = False
-
+    auto_button = user.stripe_auto_confirmed == "On"
     events_list = MemberTransaction.objects.filter(member=user).order_by(
         "-created_date"
     )
@@ -268,9 +250,9 @@ def statement_org(request, org_id):
         OrganisationTransaction.objects.filter(
             organisation=organisation, created_date__gte=ref_date
         )
-        .values("type")
-        .annotate(total=Sum("amount"))
-        .order_by("-total")
+            .values("type")
+            .annotate(total=Sum("amount"))
+            .order_by("-total")
     )
 
     total = 0.0
@@ -402,9 +384,9 @@ def statement_org_summary_ajax(request, org_id, range):
         if range == "All":
             summary = (
                 OrganisationTransaction.objects.filter(organisation=organisation)
-                .values("type")
-                .annotate(total=Sum("amount"))
-                .order_by("-total")
+                    .values("type")
+                    .annotate(total=Sum("amount"))
+                    .order_by("-total")
             )
         else:
             days = int(range)
@@ -414,9 +396,9 @@ def statement_org_summary_ajax(request, org_id, range):
                 OrganisationTransaction.objects.filter(
                     organisation=organisation, created_date__gte=ref_date
                 )
-                .values("type")
-                .annotate(total=Sum("amount"))
-                .order_by("-total")
+                    .values("type")
+                    .annotate(total=Sum("amount"))
+                    .order_by("-total")
             )
 
     total = 0.0
@@ -698,16 +680,14 @@ def member_transfer(request):
 
     # get balance
     last_tran = MemberTransaction.objects.filter(member=request.user).last()
-    if last_tran:
-        balance = last_tran.balance
-    else:
-        balance = "Nil"
+
+    balance = last_tran.balance if last_tran else "Nil"
 
     recents = (
         MemberTransaction.objects.filter(member=request.user)
-        .exclude(other_member=None)
-        .values("other_member")
-        .distinct()
+            .exclude(other_member=None)
+            .values("other_member")
+            .distinct()
     )
     recent_transfer_to = []
     for r in recents:
@@ -1096,7 +1076,7 @@ def manual_adjust_member(request):
                 amount=amount,
                 description=description,
                 log_msg="Manual adjustment by %s %s %s"
-                % (request.user, member, amount),
+                        % (request.user, member, amount),
                 source="payments",
                 sub_source="manual_adjust_member",
                 payment_type="Manual Adjustment",
@@ -1174,7 +1154,7 @@ def stripe_webpage_confirm(request, stripe_id):
     the status to Pending unless it is already Confirmed (timing issues).
 
     Args:
-        request(HTTPRequest): stasndard request object
+        request(HTTPRequest): standard request object
         stripe_id(int):  pk of stripe transaction
 
     Returns:
@@ -1622,8 +1602,8 @@ def admin_view_stripe_transactions(request):
                 StripeTransaction.objects.filter(
                     created_date__range=(from_date, to_date)
                 )
-                .exclude(stripe_method=None)
-                .order_by("-created_date")
+                    .exclude(stripe_method=None)
+                    .order_by("-created_date")
             )
 
             for stripe_item in stripes:
@@ -1770,9 +1750,9 @@ def admin_view_stripe_transaction_detail(request, stripe_transaction_id):
             balance_tran.available_on
         )
         stripe_item.stripe_percentage_charge = (
-            100.0
-            * (float(stripe_item.amount) - float(stripe_item.stripe_settlement))
-            / float(stripe_item.amount)
+                100.0
+                * (float(stripe_item.amount) - float(stripe_item.stripe_settlement))
+                / float(stripe_item.amount)
         )
         our_estimate_fee = float(stripe_item.amount) * float(
             payment_static.stripe_percentage_charge
@@ -1854,7 +1834,7 @@ def member_transfer_org(request, org_id):
             contact_member(
                 member=member,
                 msg="Transfer from %s - %s%s"
-                % (organisation, GLOBAL_CURRENCY_SYMBOL, amount),
+                    % (organisation, GLOBAL_CURRENCY_SYMBOL, amount),
                 contact_type="Email",
                 html_msg=html_msg,
                 link="/payments",

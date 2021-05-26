@@ -85,7 +85,7 @@
                 <a class="cobalt_generic_member btn btn-warning btn-sm mb-4" data-toggle="modal" id="id_generic_search" data-target="#cobalt_general_member_search1">Choose Player</a>
                 <input type="hidden" id="id_player" name="player">
                 <br>
-                <img id="cobalt-pic" class="cobalt-rounded text-center px-0 py-0  mx-0 my-0" style="height: 60px; width: 60px; display: none;"/>
+                <img id="cobalt-pic" src="" class="cobalt-rounded text-center px-0 py-0  mx-0 my-0" style="height: 60px; width: 60px; display: none;"/>
                 <p class="px-0 py-0  mx-0 my-0" id="player-name"></p>
               </div>
 
@@ -128,9 +128,9 @@
 function cobaltMemberSearchOk() {
 
   $("#id_player").val(member_id[1]);
-  $("#cobalt-pic").attr("src", "/media/" + member_pic[1]);
+  $("#cobalt-pic").attr("src", "/media/" + member_pic[1]).show();
   $("#player-name" ).html(member_name[1]);
-  $("#cobalt-pic" ).show();
+
 
 }
 

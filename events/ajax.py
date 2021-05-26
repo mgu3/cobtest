@@ -206,13 +206,8 @@ def fee_for_user_ajax(request):
 
     entry_fee, discount, reason, description = event.entry_fee_for(user)
 
-    response_data = {
-        "entry_fee": entry_fee,
-        "description": description,
-        "discount": discount,
-    }
+    response_data = {"entry_fee": entry_fee, "description": description, "discount": discount, "message": "Success"}
 
-    response_data["message"] = "Success"
     return JsonResponse({"data": response_data})
 
 
@@ -391,8 +386,7 @@ def admin_offsystem_unpay_ajax(request):
     # Check if parent complete
     event_entry_player.event_entry.check_if_paid()
 
-    response_data = {}
-    response_data["message"] = "Success"
+    response_data = {"message": "Success"}
     return JsonResponse({"data": response_data})
 
 
@@ -437,7 +431,7 @@ def admin_offsystem_pay_pp_ajax(request):
 
 
 @login_required()
-def admin_offsystem_unpay_pp_ajax(request):
+def admin_off_system_unpay_pp_ajax(request):
     """ Ajax call to mark a pp payment as no longer paid """
 
     if request.method == "POST":

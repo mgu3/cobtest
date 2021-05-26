@@ -357,7 +357,7 @@ urlpatterns = [
     ),
     path(
         "congress-admin/off-system-pp/unpay",
-        ajax.admin_offsystem_unpay_pp_ajax,
+        ajax.admin_off_system_unpay_pp_ajax,
         name="admin_offsystem_unpay_pp_ajax",
     ),
     path(
